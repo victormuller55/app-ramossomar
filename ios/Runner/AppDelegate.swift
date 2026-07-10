@@ -7,6 +7,7 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Flutter 3.41+ — plugins são registrados em didInitializeImplicitFlutterEngine
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

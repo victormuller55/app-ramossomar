@@ -1,0 +1,5 @@
+# Copie para android/key.properties (não versionar) para assinatura local de release.
+storePassword=sua_senha_do_keystore
+keyPassword=sua_senha_da_key
+keyAlias=upload
+storeFile=../upload-keystore.jks

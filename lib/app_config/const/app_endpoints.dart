@@ -1,16 +1,23 @@
 import 'package:flutter/foundation.dart';
 
 /// Host da API na máquina de desenvolvimento.
-/// Emulador Android: 10.0.2.2 | iOS Simulator / desktop / web: localhost
-/// Em dispositivo físico na mesma Wi-Fi, troque [_hostLocal] pelo IP do notebook.
+///
+/// - Emulador Android: use [_hostEmuladorAndroid] (`10.0.2.2`)
+/// - iPhone / Android físico na mesma Wi-Fi: use [_hostMaquina]
+/// - iOS Simulator também alcança [_hostMaquina]
 const String _hostEmuladorAndroid = '10.0.2.2';
-const String _hostLocal = 'localhost';
+const String _hostMaquina = '192.168.0.106';
 const int _porta = 8080;
 
+/// `true` só se estiver rodando no emulador Android.
+const bool _usarEmuladorAndroid = false;
+
 String get server {
-  final host = !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+  final host = _usarEmuladorAndroid &&
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android
       ? _hostEmuladorAndroid
-      : _hostLocal;
+      : _hostMaquina;
   return 'http://$host:$_porta';
 }
 
