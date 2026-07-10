@@ -1,6 +1,7 @@
 workflows:
   testflight:
     name: iOS TestFlight
+
     instance_type: mac_mini_m2
     max_build_duration: 120
 
@@ -33,11 +34,15 @@ workflows:
         - $HOME/Library/Caches/CocoaPods
 
     scripts:
-      - name: Log ambiente
+      - name: Environment
         script: |
-          echo "=== Codemagic Environment ==="
-          echo "Branch: $CM_BRANCH"
-          echo "Commit: $CM_COMMIT"
+          echo "=============================="
+          echo "Branch........: $CM_BRANCH"
+          echo "Commit........: $CM_COMMIT"
+          echo "Build ID......: $CM_BUILD_ID"
+          echo "Workflow......: $CM_WORKFLOW_ID"
+          echo "=============================="
+
           flutter --version
           xcodebuild -version
 
@@ -50,28 +55,35 @@ workflows:
         script: |
           flutter analyze --no-fatal-infos || true
 
-      - name: Run Tests
+      - name: Tests
         script: |
           flutter test
 
-      - name: Set Version
+      - name: Configure Version
         script: |
-          VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//' | tr -d '[:space:]')
-          BUILD_NUMBER=${PROJECT_BUILD_NUMBER}
+          VERSION_NAME=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)
+
+          if [ -n "$CM_BUILD_ID" ]; then
+            BUILD_NUMBER=$CM_BUILD_ID
+          else
+            BUILD_NUMBER=$(date +%s)
+          fi
 
           echo "VERSION_NAME=$VERSION_NAME" >> $CM_ENV
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
 
-          echo "Building $VERSION_NAME+$BUILD_NUMBER"
+          echo ""
+          echo "App Version : $VERSION_NAME"
+          echo "Build Number: $BUILD_NUMBER"
+          echo ""
 
       - name: Install CocoaPods
         script: |
           cd ios
-          pod repo update
-          pod install
+          pod install --repo-update
           cd ..
 
-      - name: Configure iOS Code Signing
+      - name: Configure Code Signing
         script: |
           xcode-project use-profiles
 
@@ -81,6 +93,7 @@ workflows:
             --release \
             --build-name="$VERSION_NAME" \
             --build-number="$BUILD_NUMBER" \
+            --no-tree-shake-icons \
             --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
