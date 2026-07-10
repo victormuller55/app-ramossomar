@@ -1,4 +1,4 @@
-package com.example.app_ramos_candidatura
+package com.net.convertix.ramossomar
 
 import io.flutter.embedding.android.FlutterActivity
 
