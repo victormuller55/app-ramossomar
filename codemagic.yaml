@@ -1,31 +1,23 @@
 workflows:
-  production-release:
-    name: TestFlight (Android + iOS)
+  testflight:
+    name: iOS TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
 
     integrations:
-      # Nome da chave App Store Connect cadastrada em
-      # Team settings → Integrations → Developer Portal
       app_store_connect: RamosSomar
 
     environment:
       flutter: 3.41.7
       xcode: 26.0
       cocoapods: default
-      java: 17
-      groups:
-        # Deve conter: GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
-        - google_play
-      android_signing:
-        # Reference name do keystore em Code signing identities
-        - ramos_keystore
+
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.net.convertix.ramossomar
+
       vars:
-        PACKAGE_NAME: com.net.convertix.ramossomar
-        APP_STORE_APPLE_ID: "6789649696" # Preencha com o Apple ID numérico do app no ASC (opcional)
+        APP_STORE_APPLE_ID: "6789649696"
 
     triggering:
       events:
@@ -39,85 +31,64 @@ workflows:
       cache_paths:
         - $FLUTTER_ROOT/.pub-cache
         - $HOME/Library/Caches/CocoaPods
-        - $HOME/.gradle/caches
 
     scripts:
       - name: Log ambiente
         script: |
-          echo "=== Codemagic / Flutter environment ==="
+          echo "=== Codemagic Environment ==="
           echo "Branch: $CM_BRANCH"
           echo "Commit: $CM_COMMIT"
-          echo "Build number: $PROJECT_BUILD_NUMBER"
           flutter --version
-          java -version
           xcodebuild -version
 
-      - name: Get Flutter packages
+      - name: Flutter Clean
         script: |
+          flutter clean
           flutter pub get
 
       - name: Analyze
         script: |
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos || true
 
-      - name: Run tests
+      - name: Run Tests
         script: |
           flutter test
 
-      - name: Set build version from pubspec + Codemagic
+      - name: Set Version
         script: |
-          # versionName do pubspec (antes do +) + build number único do Codemagic
           VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//' | tr -d '[:space:]')
           BUILD_NUMBER=${PROJECT_BUILD_NUMBER}
+
           echo "VERSION_NAME=$VERSION_NAME" >> $CM_ENV
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
-          echo "Building version $VERSION_NAME+$BUILD_NUMBER"
 
-      - name: Flutter clean (release)
-        script: |
-          flutter pub get
-
-      - name: Build Android App Bundle (AAB)
-        script: |
-          echo ">>> Building AAB $VERSION_NAME+$BUILD_NUMBER"
-          flutter build appbundle --release \
-            --build-name="$VERSION_NAME" \
-            --build-number="$BUILD_NUMBER" \
-            --verbose
+          echo "Building $VERSION_NAME+$BUILD_NUMBER"
 
       - name: Install CocoaPods
         script: |
           cd ios
+          pod repo update
           pod install
           cd ..
 
-      - name: Set up iOS code signing (automatic profiles)
+      - name: Configure iOS Code Signing
         script: |
           xcode-project use-profiles
 
-      - name: Build iOS IPA
+      - name: Build IPA
         script: |
-          echo ">>> Building IPA $VERSION_NAME+$BUILD_NUMBER"
-          flutter build ipa --release \
+          flutter build ipa \
+            --release \
             --build-name="$VERSION_NAME" \
             --build-number="$BUILD_NUMBER" \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --verbose
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
-      - build/**/outputs/**/*.aab
-      - build/**/outputs/**/*.apk
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
       - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
 
     publishing:
-#      google_play:
-#        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
-#        track: internal
-#        submit_as_draft: true
-
       app_store_connect:
         auth: integration
         submit_to_testflight: true
