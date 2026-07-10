@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
     return Column(
       children: [
         appContainer(
-          height: 300,
+          height: 200,
           width: double.infinity,
           radius: BorderRadius.only(
             bottomLeft: Radius.circular(40),
@@ -72,13 +72,13 @@ class _LoginPageState extends State<LoginPage> {
           ),
           child: appLogoRamos(height: 140, alignment: Alignment.center),
         ),
-        appSizedBox(height: AppSpacing.giant),
+        appSizedBox(height: AppSpacing.big),
         appText(
           'Use suas credenciais para acessar o painel de candidatura',
           color: AppColors.grey600,
           textAlign: TextAlign.center,
         ),
-        appSizedBox(height: AppSpacing.big),
+        appSizedBox(height: AppSpacing.medium),
       ],
     );
   }

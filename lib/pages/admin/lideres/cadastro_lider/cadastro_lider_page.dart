@@ -12,6 +12,7 @@ import 'package:app_ramos_candidatura/pages/admin/lideres/cadastro_lider/cadastr
 import 'package:app_ramos_candidatura/pages/admin/lideres/cadastro_lider/cadastro_lider_state.dart';
 import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
+import 'package:app_ramos_candidatura/widgets/app_switch.dart';
 
 class CadastroLiderPage extends StatefulWidget {
   final UsuarioModel? lider;
@@ -203,28 +204,39 @@ class _CadastroLiderPageState extends State<CadastroLiderPage> {
       children: [
         _sectionHeader('Status'),
         appContainer(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           backgroundColor: AppColors.white,
           radius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.grey200),
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: appText(
-              _ativo ? 'Líder ativo' : 'Líder inativo',
-              bold: true,
-              color: AppColors.grey900,
-              fontSize: AppFontSizes.verySmall,
-            ),
-            subtitle: appText(
-              _ativo
-                  ? 'Pode acessar o app e gerenciar cadastrados'
-                  : 'Sem acesso ao app',
-              color: AppColors.grey600,
-              fontSize: 12,
-            ),
-            value: _ativo,
-            activeThumbColor: RamosColors.primary,
-            onChanged: (value) => setState(() => _ativo = value),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    appText(
+                      _ativo ? 'Líder ativo' : 'Líder inativo',
+                      bold: true,
+                      color: AppColors.grey900,
+                      fontSize: AppFontSizes.verySmall,
+                    ),
+                    appSizedBox(height: 2),
+                    appText(
+                      _ativo
+                          ? 'Pode acessar o app e gerenciar cadastrados'
+                          : 'Sem acesso ao app',
+                      color: AppColors.grey600,
+                      fontSize: 12,
+                    ),
+                  ],
+                ),
+              ),
+              AppSwitch(
+                value: _ativo,
+                activeColor: RamosColors.primary,
+                onChanged: (value) => setState(() => _ativo = value),
+              ),
+            ],
           ),
         ),
       ],

@@ -1,5 +1,6 @@
 ﻿import 'package:app_ramos_candidatura/app_config/app_enums.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+import 'package:app_ramos_candidatura/function/share_file.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/pages/admin/relatorios/relatorios_bloc.dart';
 import 'package:app_ramos_candidatura/pages/admin/relatorios/relatorios_event.dart';
@@ -9,7 +10,6 @@ import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
-import 'package:share_plus/share_plus.dart';
 
 class RelatoriosPage extends StatefulWidget {
   const RelatoriosPage({super.key});
@@ -60,10 +60,23 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _onSuccess(RelatoriosSuccessState state) async {
+    if (!mounted) return;
+
     final label = state.formato.toUpperCase();
+    final fileName = state.filePath.split(RegExp(r'[\\/]')).last;
     showToastSuccess(message: 'Relatório $label gerado');
 
-    await Share.shareXFiles([XFile(state.filePath)], text: 'Relatório de cadastrados ($label)');
+    try {
+      await shareAppFile(
+        context,
+        filePath: state.filePath,
+        fileName: fileName,
+        subject: 'Relatório de cadastrados ($label)',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showToastError(message: 'Não foi possível compartilhar o arquivo');
+    }
   }
 
   void _onStateChanged(RelatoriosState state) {

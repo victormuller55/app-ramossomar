@@ -130,23 +130,21 @@ class _HomeShellState extends State<HomeShell> {
     required int currentIndex,
   }) {
     return BottomAppBar(
-      color: Colors.transparent,
+      // Cor do sistema na safe area inferior (home indicator) — mesma da status bar
+      color: RamosColors.primaryDark,
       elevation: 0,
       padding: EdgeInsets.zero,
       height: 64,
-      child: appContainer(
-        backgroundColor: RamosColors.primaryDark,
-        child: Row(
-          children: List.generate(items.length, (index) {
-            return Expanded(
-              child: _navItemButton(
-                item: items[index],
-                selected: currentIndex == index,
-                onTap: () => _selectTab(index),
-              ),
-            );
-          }),
-        ),
+      child: Row(
+        children: List.generate(items.length, (index) {
+          return Expanded(
+            child: _navItemButton(
+              item: items[index],
+              selected: currentIndex == index,
+              onTap: () => _selectTab(index),
+            ),
+          );
+        }),
       ),
     );
   }

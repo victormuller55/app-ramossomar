@@ -2,10 +2,14 @@ import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:app_ramos_candidatura/app_config/app_theme.dart';
 import 'package:app_ramos_candidatura/app_config/app_widget.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(kAppSystemUiOverlay);
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -24,7 +28,6 @@ void main() {
       error: error,
       stackTrace: stack,
     );
-    // true = erro tratado (evita kill silencioso; logs ficam visíveis no flutter run)
     return true;
   };
 

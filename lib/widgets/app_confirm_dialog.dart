@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
+import 'package:app_ramos_candidatura/app_config/app_platform.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/widgets/app_dialog_header.dart';
 import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
@@ -13,6 +15,31 @@ Future<bool?> showAppConfirmDialog(
   String cancelLabel = AppStrings.cancelar,
   bool destructive = false,
 }) {
+  if (isIOSPlatform) {
+    return showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(message),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(cancelLabel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: destructive,
+            isDefaultAction: !destructive,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
   return showDialog<bool>(
     context: context,
     builder: (_) => Dialog(

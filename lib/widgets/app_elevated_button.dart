@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
+import 'package:app_ramos_candidatura/app_config/app_platform.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 
 Widget appElevatedButtonRamos({
@@ -15,10 +16,10 @@ Widget appElevatedButtonRamos({
   required void Function() onTap,
 }) {
   var hover = false;
-  final borderRadius = radius ?? AppRadius.input;
-  final buttonHeight = height ?? 48;
-  final label = title.toUpperCase();
-  final textSize = fontSize ?? AppFontSizes.verySmall;
+  final borderRadius = radius ?? (isIOSPlatform ? 12.0 : AppRadius.input);
+  final buttonHeight = height ?? (isIOSPlatform ? 50.0 : 48.0);
+  final label = isIOSPlatform ? title : title.toUpperCase();
+  final textSize = fontSize ?? (isIOSPlatform ? 17.0 : AppFontSizes.verySmall);
 
   return StatefulBuilder(
     builder: (context, setState) {
@@ -78,6 +79,9 @@ Widget _animatedElevatedButton({
 }) {
   final isOutline = primary ? (invertedStyle && !hover) : (invertedStyle ? hover : !hover);
   final colors = _resolveElevatedButtonColors(primary: primary, isOutline: isOutline, hover: hover);
+  final letterSpacing = isIOSPlatform ? -0.2 : 1.0;
+  final fontFamily = isIOSPlatform ? '.SF Pro Text' : 'lato';
+  final fontWeight = isIOSPlatform ? FontWeight.w600 : FontWeight.bold;
 
   return AnimatedContainer(
     duration: AppDuration.fast,
@@ -103,10 +107,10 @@ Widget _animatedElevatedButton({
             curve: Curves.easeInOut,
             style: TextStyle(
               color: colors.textColor,
-              fontWeight: FontWeight.bold,
+              fontWeight: fontWeight,
               fontSize: textSize,
-              letterSpacing: 1,
-              fontFamily: 'lato',
+              letterSpacing: letterSpacing,
+              fontFamily: fontFamily,
             ),
             child: Text(label),
           ),
