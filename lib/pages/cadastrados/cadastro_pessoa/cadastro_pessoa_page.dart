@@ -403,16 +403,9 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       children: [
         _cepForm.formulario,
         if (_buscandoCep)
-          const Padding(
-            padding: EdgeInsets.only(right: 16, top: 10),
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: RamosColors.primary,
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 10),
+            child: appLoadingRamos(size: 18),
           ),
       ],
     );

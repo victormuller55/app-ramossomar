@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
 import 'package:app_ramos_candidatura/app_config/app_platform.dart';
@@ -16,22 +15,21 @@ Future<bool?> showAppConfirmDialog(
   bool destructive = false,
 }) {
   if (isIOSPlatform) {
-    return showCupertinoDialog<bool>(
+    // AlertDialog.adaptive → sheet nativo atual do iOS
+    return showAdaptiveDialog<bool>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
+      builder: (ctx) => AlertDialog.adaptive(
         title: Text(title),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(message),
-        ),
+        content: Text(message),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(cancelLabel),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: destructive,
-            isDefaultAction: !destructive,
+          TextButton(
+            style: destructive
+                ? TextButton.styleFrom(foregroundColor: AppColors.red)
+                : null,
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(confirmLabel),
           ),

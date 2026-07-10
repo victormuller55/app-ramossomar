@@ -7,6 +7,7 @@ import 'package:app_ramos_candidatura/pages/login_page/auth_gate_bloc.dart';
 import 'package:app_ramos_candidatura/pages/login_page/auth_gate_event.dart';
 import 'package:app_ramos_candidatura/pages/login_page/auth_gate_state.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_page.dart';
+import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 
 class AuthGatePage extends StatefulWidget {
   const AuthGatePage({super.key});
@@ -27,12 +28,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   Widget _loading() {
     return Scaffold(
       backgroundColor: AppColors.black,
-      body: Center(
-        child: CircularProgressIndicator(
-          color: RamosColors.secondary,
-          strokeWidth: 2.5,
-        ),
-      ),
+      body: appLoadingRamos(color: RamosColors.secondary),
     );
   }
 

@@ -79,8 +79,8 @@ Widget _animatedElevatedButton({
 }) {
   final isOutline = primary ? (invertedStyle && !hover) : (invertedStyle ? hover : !hover);
   final colors = _resolveElevatedButtonColors(primary: primary, isOutline: isOutline, hover: hover);
-  final letterSpacing = isIOSPlatform ? -0.2 : 1.0;
-  final fontFamily = isIOSPlatform ? '.SF Pro Text' : 'lato';
+  final letterSpacing = isIOSPlatform ? -0.41 : 1.0;
+  final fontFamily = isIOSPlatform ? null : 'lato';
   final fontWeight = isIOSPlatform ? FontWeight.w600 : FontWeight.bold;
 
   return AnimatedContainer(

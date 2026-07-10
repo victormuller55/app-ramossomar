@@ -1,9 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:app_ramos_candidatura/app_config/app_platform.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 
-/// Switch adaptativo: Cupertino no iOS, Material nos demais.
+/// Switch adaptativo (`Switch.adaptive`) — visual nativo atual em iOS/Android.
 class AppSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -18,19 +16,9 @@ class AppSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = activeColor ?? RamosColors.primary;
-
-    if (isIOSPlatform) {
-      return CupertinoSwitch(
-        value: value,
-        activeTrackColor: color,
-        onChanged: onChanged,
-      );
-    }
-
-    return Switch(
+    return Switch.adaptive(
       value: value,
-      activeThumbColor: color,
+      activeTrackColor: activeColor ?? RamosColors.primary,
       onChanged: onChanged,
     );
   }

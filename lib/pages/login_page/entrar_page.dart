@@ -7,6 +7,7 @@ import 'package:app_ramos_candidatura/pages/login_page/entrar_bloc.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_event.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_state.dart';
 import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
+import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:app_ramos_candidatura/widgets/app_logo.dart';
 import 'package:app_ramos_candidatura/widgets/login/login_form_field.dart';
 
@@ -116,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _loading() {
     return appLoading(
-      child: CircularProgressIndicator(color: RamosColors.secondary),
+      child: appLoadingRamos(color: RamosColors.secondary),
     );
   }
 

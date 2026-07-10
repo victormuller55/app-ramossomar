@@ -39,6 +39,7 @@ ThemeData buildAppTheme({required bool isIOS}) {
 
   if (!isIOS) return base;
 
+  // Tema iOS moderno: fonte do sistema (SF Pro atual) + widgets .adaptive
   return base.copyWith(
     platform: TargetPlatform.iOS,
     splashFactory: NoSplash.splashFactory,
@@ -47,27 +48,7 @@ ThemeData buildAppTheme({required bool isIOS}) {
     cupertinoOverrideTheme: const CupertinoThemeData(
       brightness: Brightness.light,
       primaryColor: RamosColors.primary,
-      barBackgroundColor: Color(0xF0F9F9F9),
-      scaffoldBackgroundColor: Color(0xFFF2F2F7),
-      textTheme: CupertinoTextThemeData(
-        primaryColor: RamosColors.primaryDark,
-        textStyle: TextStyle(
-          fontFamily: '.SF Pro Text',
-          fontSize: 17,
-          color: Color(0xFF1C1C1E),
-        ),
-        navTitleTextStyle: TextStyle(
-          fontFamily: '.SF Pro Text',
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        actionTextStyle: TextStyle(
-          fontFamily: '.SF Pro Text',
-          fontSize: 17,
-          color: RamosColors.primary,
-        ),
-      ),
+      applyThemeToAll: true,
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
@@ -76,23 +57,21 @@ ThemeData buildAppTheme({required bool isIOS}) {
         TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
       },
     ),
+    // Sem fontFamily fixa — o iOS usa SF Pro do sistema (versão atual do OS)
     textTheme: base.textTheme.apply(
-      fontFamily: '.SF Pro Text',
       bodyColor: const Color(0xFF1C1C1E),
       displayColor: const Color(0xFF1C1C1E),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: const Color(0xCCF2F2F7),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     switchTheme: SwitchThemeData(
-      thumbColor: const WidgetStatePropertyAll(Colors.white),
+      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       trackColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return RamosColors.primary;
-        return const Color(0xFFE9E9EB);
+        return null;
       }),
-      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -100,12 +79,11 @@ ThemeData buildAppTheme({required bool isIOS}) {
         backgroundColor: RamosColors.secondary,
         foregroundColor: Colors.black,
         minimumSize: const Size.fromHeight(50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(
-          fontFamily: '.SF Pro Text',
           fontWeight: FontWeight.w600,
           fontSize: 17,
-          letterSpacing: -0.2,
+          letterSpacing: -0.41,
         ),
       ),
     ),
