@@ -1,0 +1,92 @@
+---
+description: Padrão de estrutura de telas Flutter (page.dart)
+alwaysApply: true
+---
+
+# Telas Flutter — padrão obrigatório
+
+## Preferir muller_package
+
+Trocar widgets Flutter cru por helpers do pacote sempre que couber:
+
+- `appContainer`, `appSizedBox`, `appText`, `appError`, `appLoading`
+- `AppFormField` (`.formulario` / `.controller`) para campos
+- `open()`, `formataCelular`, `formataCPF`, toasts/snackbars do pacote
+
+## Formatters de formulário (obrigatório)
+
+Máscaras de input **não** devem ser criadas inline na page.
+Use sempre `AppFormFormatters` em `lib/app_config/const/app_form_formatters.dart`:
+
+```dart
+textInputFormatter: AppFormFormatters.telefone,
+textInputFormatter: AppFormFormatters.cpf,
+textInputFormatter: AppFormFormatters.data,
+textInputFormatter: AppFormFormatters.cep,
+```
+
+Se precisar de uma máscara nova, adicione no `AppFormFormatters` (como getter que cria nova instância).
+
+No import do `muller_package`, use:
+`hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters`
+quando a page usar os tokens locais de `app_consts`.
+
+UI com identidade Ramos (cores/marca) fica em `lib/widgets/` quando for compartilhada entre telas.
+
+## Layout mobile (obrigatório)
+
+Este app é **mobile**. Não copiar layout de painel web:
+
+- Sem cards centralizados com margem lateral grande
+- Usar a **largura inteira** da tela
+- Formulários em seções com espaçamento claro, não “painel com borda/sombra”
+
+## AppBar (obrigatório)
+
+- Sempre usar `scaffold(...)` do `muller_package`
+- Título **centralizado** (`centerTitle: true`)
+- Sem AppBars personalizadas / headers customizados com marca e subtítulo
+- Actions (logout, perfil, etc.) vão em `actions:` do `scaffold`
+
+## Componentes da tela
+
+- **Não criar pasta `components/`** nem arquivos extras de UI dentro da pasta da feature
+- Métodos de componentes (`Widget _chip()`, `Widget _header()`, etc.) ficam **no mesmo arquivo** da `*_page.dart`
+- Evite widgets gigantes; divida em métodos menores
+- Prefira componentes do `muller_package` antes de criar widgets manuais
+
+## Ordem na `*_page.dart` (obrigatória)
+
+1. Imports
+2. Classe `StatefulWidget` / `StatelessWidget`
+3. Instâncias (Bloc, Controllers, FocusNodes, ScrollController, FormKey, etc.)
+4. Variáveis da classe
+   - Evite getters (`get`); prefira variáveis e métodos comuns
+5. `initState()`
+6. Métodos de lógica da tela
+   - Retorno explícito (`void`, `Future<void>`, `String`, `bool`, etc.)
+   - Nomes em português misturados com inglês quando fizer sentido
+     (`buscarEmpresas`, `salvarCadastro`, `validarFormulario`)
+7. Métodos auxiliares de widgets
+8. Método que monta o body (só composição visual)
+9. BlocBuilder / BlocConsumer
+10. `build()`
+11. `dispose()`
+
+## Feature completa
+
+Arquivos da feature (somente estes): `*_page`, `*_bloc`, `*_event`, `*_state`, `*_service`.
+Helpers de domínio compartilhados podem ficar em `*_helpers.dart` na pasta da feature se necessário.
+
+Cadastros ficam **dentro** da pasta da tela que os abre
+(ex.: `lideres/cadastro_lider`, `cadastrados/cadastro_pessoa`).
+
+## Sessão expirada (401 / token inválido)
+
+Em BLoCs que chamam API autenticada, no `catch`:
+
+```dart
+if (await tratarSessaoExpirada(e)) return;
+```
+
+Não exibir `appError` com `NAO_AUTENTICADO` — usar `tratarSessaoExpirada` (`lib/function/service/session_expired.dart`).
