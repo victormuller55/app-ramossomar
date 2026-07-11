@@ -21,3 +21,8 @@ Future<List<PublicacaoModel>> listarPublicacoes({bool forceRefresh = false}) asy
   await PageDataCache.setJsonList(CacheKeys.publicacoes, maps);
   return maps.map(PublicacaoModel.fromMap).toList();
 }
+
+Future<void> excluirPublicacao(String id) async {
+  await deletePublicacao(id);
+  await PageDataCache.invalidate(CacheKeys.publicacoes);
+}

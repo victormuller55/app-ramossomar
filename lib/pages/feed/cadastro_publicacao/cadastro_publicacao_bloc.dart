@@ -18,14 +18,26 @@ class CadastroPublicacaoBloc extends Bloc<CadastroPublicacaoEvent, CadastroPubli
   ) async {
     emit(CadastroPublicacaoLoadingState());
     try {
-      final idAutor = await _resolverIdAutor();
-      if (idAutor == null) {
-        emit(CadastroPublicacaoErrorState(errorModel: _erroAutorInvalido));
-        return;
+      if (event.isEdit) {
+        final idAutor = event.publicacao.idAutor;
+        if (idAutor == null || idAutor.isEmpty) {
+          final atual = await _resolverIdAutor();
+          if (atual == null) {
+            emit(CadastroPublicacaoErrorState(errorModel: _erroAutorInvalido));
+            return;
+          }
+          event.publicacao.idAutor = atual;
+        }
+        await alterarPublicacao(event.publicacao, imagens: event.imagens);
+      } else {
+        final idAutor = await _resolverIdAutor();
+        if (idAutor == null) {
+          emit(CadastroPublicacaoErrorState(errorModel: _erroAutorInvalido));
+          return;
+        }
+        event.publicacao.idAutor = idAutor;
+        await criarPublicacao(event.publicacao, imagens: event.imagens);
       }
-
-      event.publicacao.idAutor = idAutor;
-      await criarPublicacao(event.publicacao, imagens: event.imagens);
       emit(CadastroPublicacaoSuccessState());
     } catch (e) {
       if (await tratarSessaoExpirada(e)) return;

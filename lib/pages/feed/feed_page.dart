@@ -1,13 +1,17 @@
-﻿import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+﻿import 'package:app_ramos_candidatura/app_config/app_auth.dart';
+import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
+import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/models/publicacao_model.dart';
 import 'package:app_ramos_candidatura/pages/feed/cadastro_publicacao/cadastro_publicacao_page.dart';
 import 'package:app_ramos_candidatura/pages/feed/feed_bloc.dart';
 import 'package:app_ramos_candidatura/pages/feed/feed_event.dart';
 import 'package:app_ramos_candidatura/pages/feed/feed_state.dart';
+import 'package:app_ramos_candidatura/widgets/app_confirm_dialog.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:app_ramos_candidatura/widgets/empty.dart';
 import 'package:app_ramos_candidatura/widgets/ramos_add_fab.dart';
+import 'package:app_ramos_candidatura/widgets/ramos_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
@@ -22,17 +26,30 @@ class FeedPage extends StatefulWidget {
 }
 
 class _FeedPageState extends State<FeedPage> {
-
   final FeedBloc bloc = FeedBloc();
   final List<PublicacaoModel> _publicacoes = <PublicacaoModel>[];
   final Set<String> _expandedIds = <String>{};
+
+  bool _isAdmin = false;
+  String? _idUsuarioLogado;
 
   static const int _conteudoLimite = 160;
 
   @override
   void initState() {
     super.initState();
+    _carregarSessao();
     bloc.add(FeedLoadEvent());
+  }
+
+  Future<void> _carregarSessao() async {
+    final admin = await isAdminLogado();
+    final usuario = await getUsuarioLogado();
+    if (!mounted) return;
+    setState(() {
+      _isAdmin = admin;
+      _idUsuarioLogado = usuario?.id;
+    });
   }
 
   Future<void> _refresh() async {
@@ -40,13 +57,40 @@ class _FeedPageState extends State<FeedPage> {
     await bloc.stream.firstWhere((s) => s is! FeedLoadingState);
   }
 
-  Future<void> _abrirCadastro() async {
-    final result = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => const CadastroPublicacaoPage()));
+  Future<void> _abrirCadastro({PublicacaoModel? publicacao}) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CadastroPublicacaoPage(publicacao: publicacao),
+      ),
+    );
     if (result == true && mounted) {
       bloc.add(FeedLoadEvent(forceRefresh: true));
     }
+  }
+
+  bool _podeGerenciar(PublicacaoModel pub) {
+    if (_isAdmin) return true;
+    final idAutor = pub.idAutor;
+    final idLogado = _idUsuarioLogado;
+    if (idAutor == null || idAutor.isEmpty) return false;
+    if (idLogado == null || idLogado.isEmpty) return false;
+    return idAutor == idLogado;
+  }
+
+  Future<void> _confirmarExclusao(PublicacaoModel pub) async {
+    final id = pub.id;
+    if (id == null || id.isEmpty) return;
+
+    final confirm = await showAppConfirmDialog(
+      context,
+      title: 'Apagar publicação',
+      message: 'Deseja apagar esta publicação? Essa ação não pode ser desfeita.',
+      icon: Icons.delete_outline_rounded,
+      confirmLabel: 'Apagar',
+      destructive: true,
+    );
+    if (confirm != true) return;
+    bloc.add(FeedDeleteEvent(id: id));
   }
 
   void _aplicarSucesso(FeedSuccessState state) {
@@ -102,6 +146,16 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Widget _authorAvatar(PublicacaoModel pub) {
+    final foto = fotoUrl(pub.imagemAutor);
+    final iniciais = Center(
+      child: appText(
+        pub.iniciaisAutor,
+        bold: true,
+        color: AppColors.white,
+        fontSize: AppFontSizes.verySmall,
+      ),
+    );
+
     return appContainer(
       width: 44,
       height: 44,
@@ -111,12 +165,41 @@ class _FeedPageState extends State<FeedPage> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      child: Center(
-        child: appText(
-          pub.iniciaisAutor,
-          bold: true,
-          color: AppColors.white,
-          fontSize: AppFontSizes.verySmall,
+      child: ClipOval(
+        child: foto.isNotEmpty
+            ? Image.network(
+                foto,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => iniciais,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const RamosShimmer(
+                    width: 44,
+                    height: 44,
+                    borderRadius: BorderRadius.all(Radius.circular(360)),
+                  );
+                },
+              )
+            : iniciais,
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required Color background,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: appContainer(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, size: 18, color: iconColor),
         ),
       ),
     );
@@ -166,6 +249,19 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  Widget _imagemNetwork(String url) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      errorBuilder: (context, error, stackTrace) => _imagemFallback(),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const RamosShimmer(width: double.infinity, height: double.infinity);
+      },
+    );
+  }
+
   Widget _imagensPreview(PublicacaoModel pub) {
     final urls = pub.imagens.map(fotoUrl).where((u) => u.isNotEmpty).toList();
     if (urls.isEmpty) return const SizedBox.shrink();
@@ -177,22 +273,10 @@ class _FeedPageState extends State<FeedPage> {
           AspectRatio(
             aspectRatio: 16 / 10,
             child: urls.length == 1
-                ? Image.network(
-                    urls.first,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => _imagemFallback(),
-                  )
+                ? _imagemNetwork(urls.first)
                 : PageView.builder(
                     itemCount: urls.length,
-                    itemBuilder: (context, index) {
-                      return Image.network(
-                        urls[index],
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) => _imagemFallback(),
-                      );
-                    },
+                    itemBuilder: (context, index) => _imagemNetwork(urls[index]),
                   ),
           ),
           Positioned(top: 12, left: 12, child: _imagensBadge(urls.length)),
@@ -202,6 +286,8 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Widget _postHeader(PublicacaoModel pub) {
+    final podeGerenciar = _podeGerenciar(pub);
+
     return Row(
       children: [
         _authorAvatar(pub),
@@ -223,6 +309,22 @@ class _FeedPageState extends State<FeedPage> {
             ],
           ),
         ),
+        if (podeGerenciar) ...[
+          appSizedBox(width: 8),
+          _actionButton(
+            icon: Icons.edit_rounded,
+            background: RamosColors.secondary,
+            iconColor: AppColors.black,
+            onTap: () => _abrirCadastro(publicacao: pub),
+          ),
+          appSizedBox(width: 8),
+          _actionButton(
+            icon: Icons.delete_outline_rounded,
+            background: AppColors.red.withValues(alpha: 0.12),
+            iconColor: AppColors.red,
+            onTap: () => _confirmarExclusao(pub),
+          ),
+        ],
       ],
     );
   }
@@ -313,12 +415,17 @@ class _FeedPageState extends State<FeedPage> {
   Widget _bodyBuilder() {
     return BlocConsumer<FeedBloc, FeedState>(
       bloc: bloc,
-      listener: (context, state) => _onStateChanged(state),
+      listener: (context, state) {
+        _onStateChanged(state);
+        if (state is FeedErrorState) {
+          showAppErrorSnackbar(state.errorModel);
+        }
+      },
       builder: (context, state) {
         if (state is FeedLoadingState || state is FeedInitialState) {
           return appLoadingRamos();
         }
-        if (state is FeedErrorState) {
+        if (state is FeedErrorState && _publicacoes.isEmpty) {
           return appError(
             state.errorModel,
             function: () => bloc.add(FeedLoadEvent(forceRefresh: true)),
@@ -339,7 +446,9 @@ class _FeedPageState extends State<FeedPage> {
       drawerColor: AppColors.white,
       hideBackIcon: true,
       centerTitle: true,
-      floatingActionButton: widget.showAddFab ? ramosAddFab(onTap: _abrirCadastro) : null,
+      floatingActionButton: widget.showAddFab
+          ? ramosAddFab(onTap: () => _abrirCadastro())
+          : null,
       body: _bodyBuilder(),
     );
   }

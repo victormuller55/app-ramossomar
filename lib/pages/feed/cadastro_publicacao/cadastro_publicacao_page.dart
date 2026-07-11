@@ -1,6 +1,7 @@
 ﻿import 'dart:io';
 
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/form_validation.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
@@ -16,7 +17,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
 
 class CadastroPublicacaoPage extends StatefulWidget {
-  const CadastroPublicacaoPage({super.key});
+  final PublicacaoModel? publicacao;
+
+  const CadastroPublicacaoPage({super.key, this.publicacao});
 
   @override
   State<CadastroPublicacaoPage> createState() => _CadastroPublicacaoPageState();
@@ -31,11 +34,15 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   late final AppFormField _conteudoForm;
 
   final List<XFile> _imagens = <XFile>[];
+  List<String> _imagensExistentes = <String>[];
+  bool _isEdit = false;
 
   @override
   void initState() {
     super.initState();
+    _isEdit = widget.publicacao?.id != null && widget.publicacao!.id!.isNotEmpty;
     _criarCampos();
+    _preencherFormulario();
   }
 
   void _criarCampos() {
@@ -52,6 +59,14 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
+  void _preencherFormulario() {
+    final pub = widget.publicacao;
+    if (pub == null) return;
+    _tituloForm.controller.text = pub.titulo ?? '';
+    _conteudoForm.controller.text = pub.conteudo ?? '';
+    _imagensExistentes = List<String>.from(pub.imagens);
+  }
+
   Future<void> _adicionarImagens() async {
     if (_imagens.length >= 3) {
       showToastWarning(message: 'Máximo de 3 imagens por publicação');
@@ -63,6 +78,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     if (selecionadas.isEmpty) return;
 
     setState(() {
+      _imagensExistentes = <String>[];
       _imagens.addAll(selecionadas.take(restantes));
     });
   }
@@ -78,7 +94,10 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   void _salvarCadastro() {
     if (!_validarFormulario()) return;
 
+    final atual = widget.publicacao;
     final publicacao = PublicacaoModel(
+      id: atual?.id,
+      idAutor: atual?.idAutor,
       titulo: _tituloForm.value.trim(),
       conteudo: _conteudoForm.value.trim(),
     );
@@ -87,13 +106,18 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
       CadastroPublicacaoSaveEvent(
         publicacao: publicacao,
         imagens: List<XFile>.from(_imagens),
+        isEdit: _isEdit,
       ),
     );
   }
 
   void _onStateChanged(CadastroPublicacaoState state) {
     if (state is CadastroPublicacaoSuccessState) {
-      showToastSuccess(message: 'Publicação criada com sucesso');
+      showToastSuccess(
+        message: _isEdit
+            ? 'Publicação atualizada com sucesso'
+            : 'Publicação criada com sucesso',
+      );
       Navigator.of(context).pop(true);
       return;
     }
@@ -187,6 +211,28 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
+  Widget _imagemExistenteTile(String path) {
+    final url = fotoUrl(path);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Image.network(
+        url,
+        width: 96,
+        height: 96,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return appContainer(
+            width: 96,
+            height: 96,
+            backgroundColor: AppColors.grey200,
+            radius: BorderRadius.circular(14),
+            child: Icon(Icons.broken_image_outlined, color: AppColors.grey600),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _botaoAdicionarImagem() {
     return GestureDetector(
       onTap: _adicionarImagens,
@@ -219,12 +265,16 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
       children: [
         _sectionHeader(
           'Imagens',
-          subtitle: 'Opcional. Até 3 imagens (JPG, PNG, WEBP ou GIF).',
+          subtitle: _isEdit
+              ? 'Opcional. Novas imagens substituem as atuais (até 3).'
+              : 'Opcional. Até 3 imagens (JPG, PNG, WEBP ou GIF).',
         ),
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
+            if (_imagens.isEmpty)
+              ..._imagensExistentes.map(_imagemExistenteTile),
             ...List.generate(_imagens.length, _imagemTile),
             if (_imagens.length < 3) _botaoAdicionarImagem(),
           ],
@@ -243,7 +293,10 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
           _sectionDivider(),
           _imagensSection(),
           appSizedBox(height: 24),
-          appElevatedButtonRamos(title: 'Publicar', onTap: _salvarCadastro),
+          appElevatedButtonRamos(
+            title: _isEdit ? 'Salvar alterações' : 'Publicar',
+            onTap: _salvarCadastro,
+          ),
         ],
       ),
     );
@@ -269,7 +322,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   @override
   Widget build(BuildContext context) {
     return scaffold(
-      title: 'Nova publicação',
+      title: _isEdit ? 'Editar publicação' : 'Nova publicação',
       background: AppColors.grey50,
       appBarColor: RamosColors.primaryDark,
       titleColor: AppColors.white,

@@ -2,6 +2,7 @@ class PublicacaoModel {
   String? id;
   String? idAutor;
   String? nomeAutor;
+  String? imagemAutor;
   String? titulo;
   String? conteudo;
   List<String> imagens;
@@ -12,6 +13,7 @@ class PublicacaoModel {
     this.id,
     this.idAutor,
     this.nomeAutor,
+    this.imagemAutor,
     this.titulo,
     this.conteudo,
     List<String>? imagens,
@@ -24,6 +26,7 @@ class PublicacaoModel {
       id: null,
       idAutor: null,
       nomeAutor: '',
+      imagemAutor: null,
       titulo: '',
       conteudo: '',
       imagens: <String>[],
@@ -54,6 +57,7 @@ class PublicacaoModel {
     id = json['id']?.toString();
     idAutor = (json['id_autor'] ?? json['idAutor'])?.toString();
     nomeAutor = (json['nome_autor'] ?? json['nomeAutor'])?.toString();
+    imagemAutor = (json['imagem_autor'] ?? json['imagemAutor'])?.toString();
     titulo = json['titulo']?.toString();
     conteudo = json['conteudo']?.toString();
     dataCriacao = (json['data_criacao'] ?? json['dataCriacao'])?.toString();
@@ -66,6 +70,7 @@ class PublicacaoModel {
       'id': id,
       'id_autor': idAutor,
       'nome_autor': nomeAutor,
+      'imagem_autor': imagemAutor,
       'titulo': titulo,
       'conteudo': conteudo,
       'imagens': imagens,

@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
@@ -125,10 +126,48 @@ class _PerfilPageState extends State<PerfilPage> {
   Future<void> _alterarFoto() async {
     final imagem = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
+      imageQuality: 95,
     );
     if (imagem == null) return;
-    bloc.add(PerfilUploadImagemEvent(imagem: imagem));
+
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: imagem.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 85,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Recortar foto',
+          toolbarColor: RamosColors.primaryDark,
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: RamosColors.secondary,
+          statusBarLight: false,
+          navBarLight: true,
+          backgroundColor: AppColors.grey50,
+          cropFrameColor: RamosColors.secondary,
+          cropGridColor: RamosColors.secondary.withValues(alpha: 0.4),
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          cropStyle: CropStyle.circle,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+        ),
+        IOSUiSettings(
+          title: 'Recortar foto',
+          doneButtonTitle: 'Salvar',
+          cancelButtonTitle: 'Cancelar',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          cropStyle: CropStyle.circle,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+        ),
+      ],
+    );
+    if (cropped == null || !mounted) return;
+
+    bloc.add(PerfilUploadImagemEvent(imagem: XFile(cropped.path)));
   }
 
   Future<void> _logout() async {

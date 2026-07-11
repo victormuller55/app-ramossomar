@@ -77,61 +77,70 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _brandHeader() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 50, left: 50, right: 50),
-      child: appLogoRamos(alignment: Alignment.center),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
+        child: Center(
+          child: appLogoRamos(alignment: Alignment.center),
+        ),
+      ),
     );
   }
 
   Widget _loginSheet() {
     return appContainer(
       width: double.infinity,
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
       backgroundColor: AppColors.white,
       radius: const BorderRadius.vertical(top: Radius.circular(28)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: appContainer(
-              width: 42,
-              height: 4,
-              radius: BorderRadius.circular(8),
-              backgroundColor: AppColors.grey200,
-            ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: appContainer(
+                  width: 42,
+                  height: 4,
+                  radius: BorderRadius.circular(8),
+                  backgroundColor: AppColors.grey200,
+                ),
+              ),
+              appSizedBox(height: 18),
+              appText(
+                'Acesse sua conta',
+                bold: true,
+                color: RamosColors.primaryDark,
+                fontSize: AppFontSizes.medium,
+              ),
+              appSizedBox(height: 6),
+              appText(
+                'Utilize suas credenciais de administrador ou líder para entrar. Caso ainda não possua acesso, solicite ao administrador do aplicativo.',
+                color: AppColors.grey600,
+                fontSize: AppFontSizes.verySmall,
+              ),
+              appSizedBox(height: 18),
+              _loginForm.formulario,
+              _passwordForm.formulario,
+              appSizedBox(height: 20),
+              appElevatedButtonRamos(
+                title: AppStrings.entrar,
+                onTap: _salvarLogin,
+                height: 52,
+              ),
+              appSizedBox(height: 28),
+              appText(
+                'Powered by Convertix',
+                color: AppColors.grey600,
+                fontSize: AppFontSizes.verySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          appSizedBox(height: 18),
-          appText(
-            'Acesse sua conta',
-            bold: true,
-            color: RamosColors.primaryDark,
-            fontSize: AppFontSizes.medium,
-          ),
-          appSizedBox(height: 6),
-          appText(
-            'Utilize suas credenciais de administrador ou líder para entrar. Caso ainda não possua acesso, solicite ao administrador do aplicativo.',
-            color: AppColors.grey600,
-            fontSize: AppFontSizes.verySmall,
-          ),
-          appSizedBox(height: 18),
-          _loginForm.formulario,
-          _passwordForm.formulario,
-          appSizedBox(height: 20),
-          appElevatedButtonRamos(
-            title: AppStrings.entrar,
-            onTap: _salvarLogin,
-            height: 52,
-          ),
-          appSizedBox(height: 28),
-          appText(
-            'Powered by Convertix',
-            color: AppColors.grey600,
-            fontSize: AppFontSizes.verySmall,
-            textAlign: TextAlign.center,
-          ),
-          appSizedBox(height: 8),
-        ],
+        ),
       ),
     );
   }
@@ -149,6 +158,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _body() {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: loginSystemUi,
       child: Form(
@@ -158,22 +169,17 @@ class _LoginPageState extends State<LoginPage> {
           width: double.infinity,
           height: double.infinity,
           gradient: AppGradients.loginPanel,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _brandHeader(),
-                      _loginSheet(),
-                    ],
-                  ),
-                ),
-              );
-            },
+          child: Column(
+            children: [
+              Expanded(
+                flex: keyboardOpen ? 12 : 35,
+                child: _brandHeader(),
+              ),
+              Expanded(
+                flex: keyboardOpen ? 88 : 65,
+                child: _loginSheet(),
+              ),
+            ],
           ),
         ),
       ),

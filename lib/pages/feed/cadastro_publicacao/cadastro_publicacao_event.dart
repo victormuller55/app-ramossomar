@@ -6,9 +6,11 @@ abstract class CadastroPublicacaoEvent {}
 class CadastroPublicacaoSaveEvent extends CadastroPublicacaoEvent {
   final PublicacaoModel publicacao;
   final List<XFile> imagens;
+  final bool isEdit;
 
   CadastroPublicacaoSaveEvent({
     required this.publicacao,
     this.imagens = const [],
+    this.isEdit = false,
   });
 }
