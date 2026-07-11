@@ -9,7 +9,7 @@ class LoginFormField {
 
   LoginFormField({
     required String hint,
-    double width = 360,
+    double? width,
     required IconData icon,
     bool obscureText = false,
     String? Function(String?)? validator,
@@ -33,7 +33,7 @@ class _LoginFormFieldWidget extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final String hint;
-  final double width;
+  final double? width;
   final IconData icon;
   final bool obscureText;
   final String? Function(String?)? validator;
@@ -74,17 +74,17 @@ class _LoginFormFieldWidgetState extends State<_LoginFormFieldWidget> {
     super.dispose();
   }
 
-  Color get _iconColor => _focused ? RamosColors.secondary : AppColors.grey600;
+  Color get _iconColor => _focused ? RamosColors.primary : AppColors.grey600;
 
   Color get _borderColor {
-    if (_focused) return RamosColors.secondary;
-    if (_hover) return RamosColors.primary;
+    if (_focused) return RamosColors.primary;
+    if (_hover) return RamosColors.primary.withValues(alpha: 0.55);
     return AppColors.grey200;
   }
 
   InputBorder _border(Color color, {double width = 1}) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadius.input),
+      borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: color, width: width),
     );
   }
@@ -99,29 +99,35 @@ class _LoginFormFieldWidgetState extends State<_LoginFormFieldWidget> {
         onEnter: (_) => setState(() => _hover = true),
         onExit: (_) => setState(() => _hover = false),
         child: SizedBox(
-          width: widget.width,
+          width: widget.width ?? double.infinity,
           child: TextFormField(
             controller: widget.controller,
             focusNode: widget.focusNode,
             validator: widget.validator,
             obscureText: widget.obscureText ? _obscure : false,
+            keyboardType: widget.obscureText
+                ? TextInputType.visiblePassword
+                : TextInputType.emailAddress,
+            textInputAction:
+                widget.obscureText ? TextInputAction.done : TextInputAction.next,
             style: TextStyle(
               fontFamily: 'lato',
-              fontSize: AppFontSizes.verySmall,
+              fontSize: AppFontSizes.small,
               color: AppColors.grey900,
-              letterSpacing: 1,
             ),
             decoration: InputDecoration(
               hintText: widget.hint,
               filled: true,
-              fillColor: AppColors.white,
+              fillColor: const Color(0xFFF4F6F6),
               prefixIcon: Icon(widget.icon, color: _iconColor),
               suffixIcon: widget.obscureText
                   ? IconButton(
                       onPressed: () => setState(() => _obscure = !_obscure),
                       icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
-                        color: _focused ? RamosColors.secondary : AppColors.grey600,
+                        _obscure
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                        color: _focused ? RamosColors.primary : AppColors.grey600,
                       ),
                     )
                   : null,
@@ -134,9 +140,8 @@ class _LoginFormFieldWidgetState extends State<_LoginFormFieldWidget> {
                 fontFamily: 'lato',
                 fontSize: AppFontSizes.verySmall,
                 color: AppColors.grey600,
-                letterSpacing: 1,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             ),
           ),
         ),

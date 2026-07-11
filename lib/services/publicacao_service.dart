@@ -1,3 +1,4 @@
+import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart';
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
@@ -22,5 +23,31 @@ Future<AppResponse> postPublicacao(Map<String, dynamic> body) async {
   return postJson(
     endpoint: AppEndpoints.endpointPublicacoesNovo,
     body: body,
+  );
+}
+
+Future<AppResponse> putPublicacao(Map<String, dynamic> body) async {
+  return putJson(
+    endpoint: AppEndpoints.endpointPublicacoesAlterar,
+    body: body,
+  );
+}
+
+Future<void> deletePublicacao(String id) async {
+  await deleteJson(
+    endpoint: AppEndpoints.endpointPublicacoesApagar,
+    parameters: {'id': id},
+  );
+}
+
+Future<AppResponse> uploadImagensPublicacao({
+  required String id,
+  required List<XFile> imagens,
+}) async {
+  return postMultipartFiles(
+    endpoint: AppEndpoints.endpointPublicacoesUploadImagens,
+    fieldName: 'imagens',
+    files: imagens.take(3).toList(),
+    parameters: {'id': id},
   );
 }

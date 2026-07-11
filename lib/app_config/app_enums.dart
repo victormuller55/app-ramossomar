@@ -9,8 +9,3 @@ class IntencaoVoto {
   static const apoiador = 'APOIADOR';
   static const confirmado = 'CONFIRMADO';
 }
-
-class TipoMidia {
-  static const imagem = 'IMAGEM';
-  static const video = 'VIDEO';
-}

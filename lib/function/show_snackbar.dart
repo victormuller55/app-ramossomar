@@ -1,4 +1,5 @@
 ﻿import 'package:muller_package/muller_package.dart';
+import 'package:app_ramos_candidatura/function/haptic.dart';
 import 'package:app_ramos_candidatura/function/service/api_error.dart';
 
 void showToastSuccess({required String message}) {
@@ -6,6 +7,7 @@ void showToastSuccess({required String message}) {
 }
 
 void showToastError({String? message}) {
+  vibrateErrorFeedback();
   showSnackbarError(message: message);
 }
 
@@ -16,6 +18,7 @@ void showToastWarning({required String message}) {
 void showAppErrorSnackbar(ErrorModel errorModel) {
   final message = errorModel.mensagem?.trim();
   if (message == null || message.isEmpty) return;
+  vibrateErrorFeedback();
   showSnackbarError(message: message);
 }
 

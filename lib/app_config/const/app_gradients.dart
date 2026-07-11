@@ -12,10 +12,10 @@ class AppGradients {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF000000),
-      Color(0xFF0D2E2A),
+      RamosColors.primaryDark,
       RamosColors.primary,
+      Color(0xFF1A6B63),
     ],
-    stops: [0, 0.45, 1],
+    stops: [0, 0.55, 1],
   );
 }

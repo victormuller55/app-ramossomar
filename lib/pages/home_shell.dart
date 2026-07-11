@@ -1,6 +1,8 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
+import 'package:app_ramos_candidatura/app_config/app_theme.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastrados_page.dart';
 import 'package:app_ramos_candidatura/pages/feed/feed_page.dart';
@@ -90,6 +92,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(kAppSystemUiOverlay);
     _carregarPerfil();
   }
 
@@ -168,12 +171,15 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.grey50,
-      body: _body(),
-      bottomNavigationBar: _bottomBar(
-        items: _items,
-        currentIndex: _currentIndex,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: kAppSystemUiOverlay,
+      child: Scaffold(
+        backgroundColor: AppColors.grey50,
+        body: _body(),
+        bottomNavigationBar: _bottomBar(
+          items: _items,
+          currentIndex: _currentIndex,
+        ),
       ),
     );
   }

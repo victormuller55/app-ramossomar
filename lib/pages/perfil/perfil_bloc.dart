@@ -9,6 +9,7 @@ class PerfilBloc extends Bloc<PerfilEvent, PerfilState> {
   PerfilBloc() : super(PerfilInitialState()) {
     on<PerfilLoadEvent>(_carregar);
     on<PerfilSaveEvent>(_salvar);
+    on<PerfilUploadImagemEvent>(_uploadImagem);
   }
 
   Future<void> _carregar(
@@ -32,6 +33,21 @@ class PerfilBloc extends Bloc<PerfilEvent, PerfilState> {
     emit(PerfilLoadingState());
     try {
       final usuario = await salvarPerfil(event.usuario);
+      emit(PerfilSuccessState(usuario: usuario));
+      emit(PerfilLoadedState(usuario: usuario));
+    } catch (e) {
+      if (await tratarSessaoExpirada(e)) return;
+      emit(PerfilErrorState(errorModel: errorModelFromException(e)));
+    }
+  }
+
+  Future<void> _uploadImagem(
+    PerfilUploadImagemEvent event,
+    Emitter<PerfilState> emit,
+  ) async {
+    emit(PerfilLoadingState());
+    try {
+      final usuario = await uploadImagemPerfil(event.imagem);
       emit(PerfilSuccessState(usuario: usuario));
       emit(PerfilLoadedState(usuario: usuario));
     } catch (e) {

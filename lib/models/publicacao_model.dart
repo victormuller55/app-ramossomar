@@ -1,13 +1,10 @@
-import 'package:app_ramos_candidatura/app_config/app_enums.dart';
-
 class PublicacaoModel {
   String? id;
   String? idAutor;
   String? nomeAutor;
   String? titulo;
   String? conteudo;
-  String? midia;
-  String? tipoMidia;
+  List<String> imagens;
   String? dataCriacao;
   String? dataAtualizacao;
 
@@ -17,11 +14,10 @@ class PublicacaoModel {
     this.nomeAutor,
     this.titulo,
     this.conteudo,
-    this.midia,
-    this.tipoMidia,
+    List<String>? imagens,
     this.dataCriacao,
     this.dataAtualizacao,
-  });
+  }) : imagens = imagens ?? <String>[];
 
   factory PublicacaoModel.empty() {
     return PublicacaoModel(
@@ -30,18 +26,13 @@ class PublicacaoModel {
       nomeAutor: '',
       titulo: '',
       conteudo: '',
-      midia: null,
-      tipoMidia: null,
+      imagens: <String>[],
       dataCriacao: null,
       dataAtualizacao: null,
     );
   }
 
-  bool get isImagem => tipoMidia == TipoMidia.imagem;
-
-  bool get isVideo => tipoMidia == TipoMidia.video;
-
-  bool get temMidia => midia != null && midia!.trim().isNotEmpty;
+  bool get temImagens => imagens.isNotEmpty;
 
   String get iniciaisAutor {
     final parts = (nomeAutor ?? '').trim().split(RegExp(r'\s+'));
@@ -50,16 +41,24 @@ class PublicacaoModel {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  PublicacaoModel.fromMap(Map<String, dynamic> json) {
+  static List<String> _parseImagens(dynamic value) {
+    if (value is! List) return <String>[];
+    return value
+        .map((item) => item?.toString().trim() ?? '')
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  PublicacaoModel.fromMap(Map<String, dynamic> json)
+      : imagens = _parseImagens(json['imagens']) {
     id = json['id']?.toString();
     idAutor = (json['id_autor'] ?? json['idAutor'])?.toString();
     nomeAutor = (json['nome_autor'] ?? json['nomeAutor'])?.toString();
     titulo = json['titulo']?.toString();
     conteudo = json['conteudo']?.toString();
-    midia = json['midia']?.toString();
-    tipoMidia = (json['tipo_midia'] ?? json['tipoMidia'])?.toString();
     dataCriacao = (json['data_criacao'] ?? json['dataCriacao'])?.toString();
-    dataAtualizacao = (json['data_atualizacao'] ?? json['dataAtualizacao'])?.toString();
+    dataAtualizacao =
+        (json['data_atualizacao'] ?? json['dataAtualizacao'])?.toString();
   }
 
   Map<String, dynamic> toMap() {
@@ -69,8 +68,7 @@ class PublicacaoModel {
       'nome_autor': nomeAutor,
       'titulo': titulo,
       'conteudo': conteudo,
-      'midia': midia,
-      'tipo_midia': tipoMidia,
+      'imagens': imagens,
       'data_criacao': dataCriacao,
       'data_atualizacao': dataAtualizacao,
     };
@@ -81,8 +79,15 @@ class PublicacaoModel {
       'id_autor': idAutor,
       'titulo': titulo ?? '',
       'conteudo': conteudo ?? '',
-      if (midia != null && midia!.trim().isNotEmpty) 'midia': midia!.trim(),
-      if (tipoMidia != null && tipoMidia!.trim().isNotEmpty) 'tipo_midia': tipoMidia,
+    };
+  }
+
+  Map<String, dynamic> toJsonAlterar() {
+    return {
+      'id': id,
+      'id_autor': idAutor,
+      'titulo': titulo ?? '',
+      'conteudo': conteudo ?? '',
     };
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
 import 'package:app_ramos_candidatura/app_config/app_enums.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+import 'package:app_ramos_candidatura/function/form_validation.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
@@ -47,25 +48,25 @@ class _CadastroLiderPageState extends State<CadastroLiderPage> {
   void _criarCampos() {
     _nomeForm = _criarCampo(
       hint: 'Nome completo',
-      icon: Icons.person_outline_rounded,
+      icon: Icons.person_rounded,
       validator: validateNome,
     );
     _emailForm = _criarCampo(
       hint: 'E-mail',
-      icon: Icons.email_outlined,
+      icon: Icons.email_rounded,
       textInputType: TextInputType.emailAddress,
       validator: validateEmail,
     );
     _senhaForm = _criarCampo(
       hint: _isEdit ? 'Nova senha (opcional)' : 'Senha',
-      icon: Icons.lock_outline_rounded,
+      icon: Icons.lock_rounded,
       textInputType: TextInputType.visiblePassword,
       showContent: false,
       validator: _isEdit ? validateSenhaOpcional : validateSenhaCadastro,
     );
     _telefoneForm = _criarCampo(
       hint: 'Telefone',
-      icon: Icons.phone_outlined,
+      icon: Icons.phone_rounded,
       textInputType: TextInputType.phone,
       textInputFormatter: AppFormFormatters.telefone,
     );
@@ -87,7 +88,7 @@ class _CadastroLiderPageState extends State<CadastroLiderPage> {
   }
 
   bool _validarFormulario() {
-    return _formKey.currentState?.validate() ?? false;
+    return validarFormularioComFeedback(_formKey);
   }
 
   void _salvarCadastro() {

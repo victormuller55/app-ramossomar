@@ -1,5 +1,7 @@
-﻿import 'package:app_ramos_candidatura/app_config/app_enums.dart';
+﻿import 'dart:io';
+
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+import 'package:app_ramos_candidatura/function/form_validation.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/models/publicacao_model.dart';
@@ -10,6 +12,7 @@ import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
 
 class CadastroPublicacaoPage extends StatefulWidget {
@@ -22,12 +25,12 @@ class CadastroPublicacaoPage extends StatefulWidget {
 class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   final CadastroPublicacaoBloc bloc = CadastroPublicacaoBloc();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
 
   late final AppFormField _tituloForm;
   late final AppFormField _conteudoForm;
-  late final AppFormField _midiaForm;
 
-  String? _tipoMidia;
+  final List<XFile> _imagens = <XFile>[];
 
   @override
   void initState() {
@@ -43,67 +46,49 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
     _conteudoForm = _criarCampo(
       hint: 'Conteúdo da publicação',
-      icon: Icons.notes_outlined,
+      icon: Icons.notes_rounded,
       maxLines: 6,
       validator: validateConteudoPublicacao,
     );
-    _midiaForm = _criarCampo(
-      hint: 'URL da mídia (opcional)',
-      icon: Icons.link_rounded,
-      textInputType: TextInputType.url,
-      onChange: _onMidiaChanged,
-    );
   }
 
-  String? _valorOpcional(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  String? _detectarTipoMidia(String? url) {
-    if (url == null || url.trim().isEmpty) return null;
-    final lower = url.toLowerCase();
-    if (lower.contains('.mp4') ||
-        lower.contains('.mov') ||
-        lower.contains('.webm') ||
-        lower.contains('youtube') ||
-        lower.contains('youtu.be') ||
-        lower.contains('vimeo')) {
-      return TipoMidia.video;
+  Future<void> _adicionarImagens() async {
+    if (_imagens.length >= 3) {
+      showToastWarning(message: 'Máximo de 3 imagens por publicação');
+      return;
     }
-    return TipoMidia.imagem;
+
+    final restantes = 3 - _imagens.length;
+    final selecionadas = await _picker.pickMultiImage(limit: restantes);
+    if (selecionadas.isEmpty) return;
+
+    setState(() {
+      _imagens.addAll(selecionadas.take(restantes));
+    });
   }
 
-  void _onMidiaChanged(String value) {
-    final midia = _valorOpcional(value);
-    setState(() => _tipoMidia = _detectarTipoMidia(midia));
-  }
-
-  void _selectTipoMidia(String? value) {
-    setState(() => _tipoMidia = value);
+  void _removerImagem(int index) {
+    setState(() => _imagens.removeAt(index));
   }
 
   bool _validarFormulario() {
-    return _formKey.currentState?.validate() ?? false;
+    return validarFormularioComFeedback(_formKey);
   }
 
   void _salvarCadastro() {
     if (!_validarFormulario()) return;
 
-    final midia = _valorOpcional(_midiaForm.value);
-    if (midia != null && (_tipoMidia == null || _tipoMidia!.isEmpty)) {
-      showToastWarning(message: 'Selecione o tipo da mídia');
-      return;
-    }
-
     final publicacao = PublicacaoModel(
       titulo: _tituloForm.value.trim(),
       conteudo: _conteudoForm.value.trim(),
-      midia: midia,
-      tipoMidia: midia == null ? null : _tipoMidia,
     );
 
-    bloc.add(CadastroPublicacaoSaveEvent(publicacao: publicacao));
+    bloc.add(
+      CadastroPublicacaoSaveEvent(
+        publicacao: publicacao,
+        imagens: List<XFile>.from(_imagens),
+      ),
+    );
   }
 
   void _onStateChanged(CadastroPublicacaoState state) {
@@ -122,7 +107,6 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     required IconData icon,
     TextInputType? textInputType,
     String? Function(String?)? validator,
-    ValueChanged<String>? onChange,
     int? maxLines,
   }) {
     return AppFormField(
@@ -138,7 +122,6 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
       radius: 14,
       textInputType: textInputType,
       validator: validator,
-      onChange: onChange,
       maxLines: maxLines,
     );
   }
@@ -166,39 +149,6 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
-  Widget _tipoChip({
-    required String label,
-    required String value,
-    required IconData icon,
-    required bool selected,
-  }) {
-    return GestureDetector(
-      onTap: () => _selectTipoMidia(value),
-      child: appContainer(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        backgroundColor: selected ? RamosColors.secondary.withValues(alpha: 0.35) : AppColors.white,
-        radius: BorderRadius.circular(20),
-        border: Border.all(
-          color: selected ? RamosColors.primary : AppColors.grey200,
-          width: selected ? 1.5 : 1,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: RamosColors.primaryDark),
-            appSizedBox(width: 6),
-            appText(
-              label,
-              bold: selected,
-              color: RamosColors.primaryDark,
-              fontSize: AppFontSizes.verySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _conteudoSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,42 +156,79 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
-  Widget _midiaSection() {
-    final temMidia = _valorOpcional(_midiaForm.value) != null;
+  Widget _imagemTile(int index) {
+    final file = _imagens[index];
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.file(
+            File(file.path),
+            width: 96,
+            height: 96,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => _removerImagem(index),
+            child: appContainer(
+              width: 26,
+              height: 26,
+              backgroundColor: AppColors.black.withValues(alpha: 0.55),
+              radius: BorderRadius.circular(360),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _botaoAdicionarImagem() {
+    return GestureDetector(
+      onTap: _adicionarImagens,
+      child: appContainer(
+        width: 96,
+        height: 96,
+        backgroundColor: AppColors.white,
+        radius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.grey200),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_photo_alternate_rounded, color: RamosColors.primary),
+            appSizedBox(height: 6),
+            appText(
+              'Adicionar',
+              color: RamosColors.primaryDark,
+              fontSize: 11,
+              bold: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _imagensSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Mídia', subtitle: 'Opcional. Informe a URL de uma imagem ou vídeo.'),
-        _midiaForm.formulario,
-        if (temMidia) ...[
-          appSizedBox(height: 12),
-          appText(
-            'Tipo da mídia',
-            bold: true,
-            color: AppColors.grey900,
-            fontSize: AppFontSizes.verySmall,
-          ),
-          appSizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _tipoChip(
-                label: 'Imagem',
-                value: TipoMidia.imagem,
-                icon: Icons.image_outlined,
-                selected: _tipoMidia == TipoMidia.imagem,
-              ),
-              _tipoChip(
-                label: 'Vídeo',
-                value: TipoMidia.video,
-                icon: Icons.videocam_outlined,
-                selected: _tipoMidia == TipoMidia.video,
-              ),
-            ],
-          ),
-        ],
+        _sectionHeader(
+          'Imagens',
+          subtitle: 'Opcional. Até 3 imagens (JPG, PNG, WEBP ou GIF).',
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            ...List.generate(_imagens.length, _imagemTile),
+            if (_imagens.length < 3) _botaoAdicionarImagem(),
+          ],
+        ),
       ],
     );
   }
@@ -254,7 +241,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
         children: [
           _conteudoSection(),
           _sectionDivider(),
-          _midiaSection(),
+          _imagensSection(),
           appSizedBox(height: 24),
           appElevatedButtonRamos(title: 'Publicar', onTap: _salvarCadastro),
         ],
@@ -294,7 +281,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
 
   @override
   void dispose() {
-    for (final form in [_tituloForm, _conteudoForm, _midiaForm]) {
+    for (final form in [_tituloForm, _conteudoForm]) {
       form.controller.dispose();
     }
     bloc.close();

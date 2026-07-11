@@ -249,43 +249,27 @@ class _CadastradosPageState extends State<CadastradosPage> {
     );
   }
 
-  Widget _profileEditBadge() {
-    return appContainer(
-      width: 24,
-      height: 24,
-      backgroundColor: RamosColors.secondary,
-      radius: BorderRadius.circular(360),
-      border: Border.all(color: AppColors.white, width: 2),
-      child: Icon(Icons.edit_rounded, size: 12, color: AppColors.black),
-    );
-  }
-
   Widget _profileAvatar() {
     final foto = fotoUrl(_usuario?.foto);
     final nome = _usuario?.nome ?? '?';
 
-    return Stack(
-      children: [
-        appContainer(
-          width: 64,
-          height: 64,
-          radius: BorderRadius.circular(360),
-          gradient: AppGradients.primary,
-          border: Border.all(color: RamosColors.secondary, width: 2),
-          child: ClipOval(
-            child: foto.isNotEmpty
-                ? Image.network(
-                    foto,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _initialsAvatar(nome: nome, size: 64, textSize: 22);
-                    },
-                  )
-                : _initialsAvatar(nome: nome, size: 64, textSize: 22),
-          ),
-        ),
-        Positioned(right: 0, bottom: 0, child: _profileEditBadge()),
-      ],
+    return appContainer(
+      width: 64,
+      height: 64,
+      radius: BorderRadius.circular(360),
+      gradient: AppGradients.primary,
+      border: Border.all(color: RamosColors.secondary, width: 2),
+      child: ClipOval(
+        child: foto.isNotEmpty
+            ? Image.network(
+                foto,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _initialsAvatar(nome: nome, size: 64, textSize: 22);
+                },
+              )
+            : _initialsAvatar(nome: nome, size: 64, textSize: 22),
+      ),
     );
   }
 

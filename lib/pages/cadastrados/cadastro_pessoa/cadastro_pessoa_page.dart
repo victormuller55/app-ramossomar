@@ -4,13 +4,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
 import 'package:app_ramos_candidatura/app_config/app_enums.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+import 'package:app_ramos_candidatura/function/form_validation.dart';
+import 'package:app_ramos_candidatura/function/service/session_expired.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/function/via_cep.dart';
 import 'package:app_ramos_candidatura/models/apoiador_model.dart';
+import 'package:app_ramos_candidatura/models/cidade_model.dart';
+import 'package:app_ramos_candidatura/models/local_votacao_model.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_bloc.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_event.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_state.dart';
+import 'package:app_ramos_candidatura/services/cidade_service.dart';
+import 'package:app_ramos_candidatura/services/local_votacao_service.dart';
 import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 
@@ -24,7 +30,6 @@ class CadastroPessoaPage extends StatefulWidget {
 }
 
 class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
-
   final CadastroPessoaBloc bloc = CadastroPessoaBloc();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -47,81 +52,101 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
   String? _ultimoCepBuscado;
   bool _isEdit = false;
 
+  List<CidadeModel> _cidades = [];
+  List<LocalVotacaoModel> _locaisVotacao = [];
+  CidadeModel? _cidadeSelecionada;
+  LocalVotacaoModel? _localSelecionado;
+  bool _carregandoCidades = false;
+  bool _carregandoLocais = false;
+
   @override
   void initState() {
     super.initState();
     _isEdit = widget.apoiador?.id != null && widget.apoiador!.id!.isNotEmpty;
     _criarCampos();
     _preencherFormulario();
+    _carregarCidades();
   }
 
   void _criarCampos() {
     _nomeForm = _criarCampo(
       hint: 'Nome completo',
-      icon: Icons.person_outline_rounded,
+      icon: Icons.person_rounded,
       validator: validateNome,
     );
     _cpfForm = _criarCampo(
       hint: 'CPF',
-      icon: Icons.badge_outlined,
+      icon: Icons.badge_rounded,
       textInputType: TextInputType.number,
       textInputFormatter: AppFormFormatters.cpf,
       validator: validateCpf,
     );
     _dataNascimentoForm = _criarCampo(
       hint: 'Data de nascimento',
-      icon: Icons.calendar_today_outlined,
+      icon: Icons.calendar_today_rounded,
       textInputType: TextInputType.number,
       textInputFormatter: AppFormFormatters.data,
       validator: validateDataNascimento,
     );
     _telefoneForm = _criarCampo(
       hint: 'Telefone',
-      icon: Icons.phone_outlined,
+      icon: Icons.phone_rounded,
       textInputType: TextInputType.phone,
       textInputFormatter: AppFormFormatters.telefone,
     );
     _whatsappForm = _criarCampo(
       hint: 'WhatsApp',
-      icon: Icons.chat_outlined,
+      icon: Icons.chat_rounded,
       textInputType: TextInputType.phone,
       textInputFormatter: AppFormFormatters.telefone,
     );
     _cepForm = _criarCampo(
       hint: 'CEP',
-      icon: Icons.markunread_mailbox_outlined,
+      icon: Icons.markunread_mailbox_rounded,
       textInputType: TextInputType.number,
       textInputFormatter: AppFormFormatters.cep,
       onChange: _onCepChanged,
     );
     _enderecoForm = _criarCampo(
       hint: 'Endereço',
-      icon: Icons.home_outlined,
+      icon: Icons.home_rounded,
     );
     _numeroForm = _criarCampo(
       hint: 'Número',
-      icon: Icons.tag_outlined,
-      textInputType: TextInputType.text,
+      icon: Icons.tag_rounded,
+      textInputType: TextInputType.number,
     );
     _complementoForm = _criarCampo(
       hint: 'Complemento',
-      icon: Icons.apartment_outlined,
+      icon: Icons.apartment_rounded,
     );
     _bairroForm = _criarCampo(
       hint: 'Bairro',
-      icon: Icons.location_city_outlined,
+      icon: Icons.location_city_rounded,
     );
     _cidadeForm = _criarCampo(
       hint: 'Cidade',
-      icon: Icons.location_on_outlined,
+      icon: Icons.location_on_rounded,
+      showKeyboard: false,
+      onTap: _abrirSeletorCidade,
+      suffixIcon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: AppColors.grey600,
+      ),
     );
     _localVotacaoForm = _criarCampo(
       hint: 'Local de votação',
-      icon: Icons.how_to_vote_outlined,
+      icon: Icons.how_to_vote_rounded,
+      showKeyboard: false,
+      onTap: _abrirSeletorLocal,
+      suffixIcon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: AppColors.grey600,
+      ),
     );
     _observacoesForm = _criarCampo(
       hint: 'Observações',
-      icon: Icons.notes_outlined,
+      icon: Icons.notes_rounded,
       maxLines: 3,
     );
   }
@@ -140,8 +165,6 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     _numeroForm.controller.text = apo.numero ?? '';
     _complementoForm.controller.text = apo.complemento ?? '';
     _bairroForm.controller.text = apo.bairro ?? '';
-    _cidadeForm.controller.text = apo.cidade ?? '';
-    _localVotacaoForm.controller.text = apo.localVotacao ?? '';
     _observacoesForm.controller.text = apo.observacoes ?? '';
     _intencaoVoto = apo.intencaoVoto ?? IntencaoVoto.indeciso;
     final cepDigits = (apo.cep ?? '').replaceAll(RegExp(r'\D'), '');
@@ -161,8 +184,8 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     return '${parts[2]}/${parts[1]}/${parts[0]}';
   }
 
-  String? _valorOpcional(String value) {
-    final trimmed = value.trim();
+  String? _valorOpcional(String? value) {
+    final trimmed = value?.trim() ?? '';
     return trimmed.isEmpty ? null : trimmed;
   }
 
@@ -170,6 +193,18 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     final digits = value.replaceAll(RegExp(r'\D'), '');
     if (digits.length != 8) return null;
     return '${digits.substring(4, 8)}-${digits.substring(2, 4)}-${digits.substring(0, 2)}';
+  }
+
+  String _normalizar(String value) {
+    return value
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[áàâãä]'), 'a')
+        .replaceAll(RegExp(r'[éèêë]'), 'e')
+        .replaceAll(RegExp(r'[íìîï]'), 'i')
+        .replaceAll(RegExp(r'[óòôõö]'), 'o')
+        .replaceAll(RegExp(r'[úùûü]'), 'u')
+        .replaceAll('ç', 'c');
   }
 
   String _labelIntencao(String value) {
@@ -188,6 +223,295 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
 
   void _selectIntencao(String value) {
     setState(() => _intencaoVoto = value);
+  }
+
+  Future<void> _carregarCidades() async {
+    setState(() => _carregandoCidades = true);
+    try {
+      final cidades = await listarCidades();
+      if (!mounted) return;
+      setState(() {
+        _cidades = cidades;
+        _carregandoCidades = false;
+      });
+
+      final nomeCidade = widget.apoiador?.cidade;
+      if (nomeCidade != null && nomeCidade.isNotEmpty) {
+        await _selecionarCidadePorNome(
+          nomeCidade,
+          nomeLocal: widget.apoiador?.localVotacao,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _carregandoCidades = false);
+      if (await tratarSessaoExpirada(e)) return;
+      showToastWarning(message: 'Não foi possível carregar as cidades');
+    }
+  }
+
+  Future<void> _carregarLocais({String? nomeLocalParaSelecionar}) async {
+    final idCidade = _cidadeSelecionada?.id;
+    if (idCidade == null || idCidade.isEmpty) {
+      setState(() {
+        _locaisVotacao = [];
+        _localSelecionado = null;
+        _carregandoLocais = false;
+        _localVotacaoForm.controller.clear();
+      });
+      return;
+    }
+
+    setState(() {
+      _carregandoLocais = true;
+      _localSelecionado = null;
+      _locaisVotacao = [];
+      _localVotacaoForm.controller.clear();
+    });
+
+    try {
+      final locais = await listarLocaisVotacao(idCidade: idCidade, ativo: true);
+      if (!mounted) return;
+
+      LocalVotacaoModel? selecionado;
+      if (nomeLocalParaSelecionar != null && nomeLocalParaSelecionar.isNotEmpty) {
+        selecionado = _encontrarLocal(locais, nomeLocalParaSelecionar);
+      }
+
+      setState(() {
+        _locaisVotacao = locais;
+        _localSelecionado = selecionado;
+        _carregandoLocais = false;
+        _localVotacaoForm.controller.text = selecionado?.nome ?? '';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _carregandoLocais = false);
+      if (await tratarSessaoExpirada(e)) return;
+      showToastWarning(message: 'Não foi possível carregar os locais de votação');
+    }
+  }
+
+  CidadeModel? _encontrarCidade(String nome, {String? uf}) {
+    final n = _normalizar(nome);
+    final u = uf?.trim().toUpperCase();
+
+    for (final cidade in _cidades) {
+      if (u != null && u.isNotEmpty && (cidade.uf ?? '').toUpperCase() != u) {
+        continue;
+      }
+      if (_normalizar(cidade.nome ?? '') == n) return cidade;
+    }
+
+    for (final cidade in _cidades) {
+      if (u != null && u.isNotEmpty && (cidade.uf ?? '').toUpperCase() != u) {
+        continue;
+      }
+      final nomeCidade = _normalizar(cidade.nome ?? '');
+      if (nomeCidade.contains(n) || n.contains(nomeCidade)) return cidade;
+    }
+    return null;
+  }
+
+  LocalVotacaoModel? _encontrarLocal(List<LocalVotacaoModel> locais, String nome) {
+    final n = _normalizar(nome);
+    for (final local in locais) {
+      if (_normalizar(local.nome ?? '') == n) return local;
+    }
+    for (final local in locais) {
+      final nomeLocal = _normalizar(local.nome ?? '');
+      if (nomeLocal.contains(n) || n.contains(nomeLocal)) return local;
+    }
+    return null;
+  }
+
+  Future<void> _selecionarCidadePorNome(
+    String nome, {
+    String? uf,
+    String? nomeLocal,
+  }) async {
+    final cidade = _encontrarCidade(nome, uf: uf);
+    if (cidade == null) return;
+    await _onCidadeSelected(cidade, nomeLocalParaSelecionar: nomeLocal);
+  }
+
+  Future<void> _onCidadeSelected(
+    CidadeModel cidade, {
+    String? nomeLocalParaSelecionar,
+  }) async {
+    setState(() {
+      _cidadeSelecionada = cidade;
+      _localSelecionado = null;
+      _locaisVotacao = [];
+      _cidadeForm.controller.text = cidade.nome ?? '';
+      _localVotacaoForm.controller.clear();
+    });
+    await _carregarLocais(nomeLocalParaSelecionar: nomeLocalParaSelecionar);
+  }
+
+  void _onLocalSelected(LocalVotacaoModel local) {
+    setState(() {
+      _localSelecionado = local;
+      _localVotacaoForm.controller.text = local.nome ?? '';
+    });
+  }
+
+  Future<void> _abrirSeletorCidade() async {
+    if (_carregandoCidades) return;
+    if (_cidades.isEmpty) {
+      showToastWarning(message: 'Nenhuma cidade disponível');
+      return;
+    }
+
+    final selecionada = await _abrirSeletor<CidadeModel>(
+      titulo: 'Selecionar cidade',
+      itens: _cidades,
+      labelOf: (c) => c.label,
+      selecionado: _cidadeSelecionada,
+      equals: (a, b) => a.id == b.id,
+    );
+    if (selecionada == null) return;
+    if (selecionada.id == _cidadeSelecionada?.id) return;
+    await _onCidadeSelected(selecionada);
+  }
+
+  Future<void> _abrirSeletorLocal() async {
+    if (_cidadeSelecionada == null) {
+      showToastWarning(message: 'Selecione a cidade primeiro');
+      return;
+    }
+    if (_carregandoLocais) return;
+    if (_locaisVotacao.isEmpty) {
+      showToastWarning(message: 'Nenhum local de votação para esta cidade');
+      return;
+    }
+
+    final selecionado = await _abrirSeletor<LocalVotacaoModel>(
+      titulo: 'Local de votação',
+      itens: _locaisVotacao,
+      labelOf: (l) => l.label,
+      selecionado: _localSelecionado,
+      equals: (a, b) => a.id == b.id,
+    );
+    if (selecionado == null) return;
+    _onLocalSelected(selecionado);
+  }
+
+  Future<T?> _abrirSeletor<T>({
+    required String titulo,
+    required List<T> itens,
+    required String Function(T) labelOf,
+    required T? selecionado,
+    required bool Function(T, T) equals,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        String busca = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtrados = itens.where((item) {
+              if (busca.trim().isEmpty) return true;
+              return _normalizar(labelOf(item)).contains(_normalizar(busca));
+            }).toList();
+
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: appText(
+                              titulo,
+                              bold: true,
+                              color: RamosColors.primaryDark,
+                              fontSize: AppFontSizes.small,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: Icon(Icons.close_rounded, color: AppColors.grey600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        onChanged: (value) => setModalState(() => busca = value),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar...',
+                          prefixIcon: Icon(Icons.search_rounded, color: RamosColors.primary),
+                          filled: true,
+                          fillColor: AppColors.grey50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: AppColors.grey200),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: AppColors.grey200),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: RamosColors.primary),
+                          ),
+                        ),
+                      ),
+                    ),
+                    appSizedBox(height: 8),
+                    Expanded(
+                      child: filtrados.isEmpty
+                          ? Center(
+                              child: appText(
+                                'Nenhum item encontrado',
+                                color: AppColors.grey600,
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filtrados.length,
+                              separatorBuilder: (context, index) => Divider(
+                                height: 1,
+                                color: AppColors.grey200,
+                              ),
+                              itemBuilder: (context, index) {
+                                final item = filtrados[index];
+                                final isSelected = selecionado != null &&
+                                    equals(item, selecionado);
+                                return ListTile(
+                                  title: appText(
+                                    labelOf(item),
+                                    bold: isSelected,
+                                    color: RamosColors.primaryDark,
+                                  ),
+                                  trailing: isSelected
+                                      ? Icon(
+                                          Icons.check_rounded,
+                                          color: RamosColors.primary,
+                                        )
+                                      : null,
+                                  onTap: () => Navigator.of(context).pop(item),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _onCepChanged(String value) async {
@@ -213,7 +537,10 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
         _bairroForm.controller.text = endereco.bairro!;
       }
       if (endereco.cidade?.isNotEmpty == true) {
-        _cidadeForm.controller.text = endereco.cidade!;
+        await _selecionarCidadePorNome(
+          endereco.cidade!,
+          uf: endereco.uf,
+        );
       }
       if (endereco.complemento?.isNotEmpty == true &&
           _complementoForm.value.trim().isEmpty) {
@@ -228,7 +555,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
   }
 
   bool _validarFormulario() {
-    return _formKey.currentState?.validate() ?? false;
+    return validarFormularioComFeedback(_formKey);
   }
 
   void _salvarCadastro() {
@@ -247,8 +574,8 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       numero: _valorOpcional(_numeroForm.value),
       complemento: _valorOpcional(_complementoForm.value),
       bairro: _valorOpcional(_bairroForm.value),
-      cidade: _valorOpcional(_cidadeForm.value),
-      localVotacao: _valorOpcional(_localVotacaoForm.value),
+      cidade: _valorOpcional(_cidadeSelecionada?.nome),
+      localVotacao: _valorOpcional(_localSelecionado?.nome),
       intencaoVoto: _intencaoVoto,
       observacoes: _valorOpcional(_observacoesForm.value),
     );
@@ -279,11 +606,14 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     String? Function(String?)? validator,
     ValueChanged<String>? onChange,
     int? maxLines,
+    Widget? suffixIcon,
+    VoidCallback? onTap,
+    bool showKeyboard = true,
   }) {
     return AppFormField(
       context: context,
       hint: hint,
-      icon: Icon(icon),
+      icon: Icon(icon, size: 22),
       iconColor: RamosColors.primary,
       inputColor: AppColors.grey900,
       hintColor: AppColors.grey600,
@@ -296,6 +626,9 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       validator: validator,
       onChange: onChange,
       maxLines: maxLines,
+      suffixIcon: suffixIcon,
+      onTap: onTap,
+      showKeyboard: showKeyboard,
     );
   }
 
@@ -411,6 +744,40 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     );
   }
 
+  Widget _selectField({
+    required AppFormField form,
+    required String hint,
+    required IconData icon,
+    bool loading = false,
+  }) {
+    if (!loading) return form.formulario;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: appContainer(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        backgroundColor: AppColors.white,
+        radius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.grey200),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: RamosColors.primary),
+            appSizedBox(width: 12),
+            Expanded(
+              child: appText(
+                hint,
+                color: AppColors.grey600,
+                fontSize: AppFontSizes.verySmall,
+              ),
+            ),
+            appLoadingRamos(size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _endereco() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,17 +788,21 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
         ),
         _cepField(),
         _enderecoForm.formulario,
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _numeroForm.formulario),
-            appSizedBox(width: 10),
-            Expanded(flex: 2, child: _complementoForm.formulario),
-          ],
-        ),
+        _numeroForm.formulario,
+        _complementoForm.formulario,
         _bairroForm.formulario,
-        _cidadeForm.formulario,
-        _localVotacaoForm.formulario,
+        _selectField(
+          form: _cidadeForm,
+          hint: 'Carregando cidades...',
+          icon: Icons.location_on_rounded,
+          loading: _carregandoCidades,
+        ),
+        _selectField(
+          form: _localVotacaoForm,
+          hint: 'Carregando locais...',
+          icon: Icons.how_to_vote_rounded,
+          loading: _carregandoLocais,
+        ),
       ],
     );
   }

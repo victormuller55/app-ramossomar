@@ -1,5 +1,4 @@
-﻿import 'package:app_ramos_candidatura/app_config/app_enums.dart';
-import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+﻿import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/models/publicacao_model.dart';
 import 'package:app_ramos_candidatura/pages/feed/cadastro_publicacao/cadastro_publicacao_page.dart';
@@ -123,8 +122,7 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _midiaBadge(PublicacaoModel pub) {
-    final isVideo = pub.isVideo || pub.tipoMidia == TipoMidia.video;
+  Widget _imagensBadge(int total) {
     return appContainer(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       backgroundColor: AppColors.white.withValues(alpha: 0.92),
@@ -132,14 +130,10 @@ class _FeedPageState extends State<FeedPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isVideo ? Icons.play_circle_outline_rounded : Icons.image_outlined,
-            size: 14,
-            color: RamosColors.primaryDark,
-          ),
+          Icon(Icons.image_rounded, size: 14, color: RamosColors.primaryDark),
           appSizedBox(width: 4),
           appText(
-            isVideo ? 'Vídeo' : 'Imagem',
+            total == 1 ? '1 imagem' : '$total imagens',
             bold: true,
             color: RamosColors.primaryDark,
             fontSize: 11,
@@ -149,7 +143,7 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _midiaFallback(bool isVideo) {
+  Widget _imagemFallback() {
     return appContainer(
       width: double.infinity,
       backgroundColor: RamosColors.primaryDark,
@@ -164,7 +158,7 @@ class _FeedPageState extends State<FeedPage> {
       ),
       child: Center(
         child: Icon(
-          isVideo ? Icons.videocam_rounded : Icons.campaign_rounded,
+          Icons.campaign_rounded,
           color: AppColors.white.withValues(alpha: 0.9),
           size: 42,
         ),
@@ -172,9 +166,9 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _midiaPreview(PublicacaoModel pub) {
-    final url = fotoUrl(pub.midia);
-    final isVideo = pub.isVideo || pub.tipoMidia == TipoMidia.video;
+  Widget _imagensPreview(PublicacaoModel pub) {
+    final urls = pub.imagens.map(fotoUrl).where((u) => u.isNotEmpty).toList();
+    if (urls.isEmpty) return const SizedBox.shrink();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -182,28 +176,26 @@ class _FeedPageState extends State<FeedPage> {
         children: [
           AspectRatio(
             aspectRatio: 16 / 10,
-            child: url.isNotEmpty && !isVideo
+            child: urls.length == 1
                 ? Image.network(
-                    url,
+                    urls.first,
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => _midiaFallback(isVideo),
+                    errorBuilder: (context, error, stackTrace) => _imagemFallback(),
                   )
-                : _midiaFallback(isVideo),
+                : PageView.builder(
+                    itemCount: urls.length,
+                    itemBuilder: (context, index) {
+                      return Image.network(
+                        urls[index],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) => _imagemFallback(),
+                      );
+                    },
+                  ),
           ),
-          Positioned(top: 12, left: 12, child: _midiaBadge(pub)),
-          if (isVideo)
-            Positioned.fill(
-              child: Center(
-                child: appContainer(
-                  width: 56,
-                  height: 56,
-                  backgroundColor: AppColors.black.withValues(alpha: 0.45),
-                  radius: BorderRadius.circular(360),
-                  child: Icon(Icons.play_arrow_rounded, color: AppColors.white, size: 34),
-                ),
-              ),
-            ),
+          Positioned(top: 12, left: 12, child: _imagensBadge(urls.length)),
         ],
       ),
     );
@@ -279,7 +271,7 @@ class _FeedPageState extends State<FeedPage> {
           _postHeader(pub),
           appSizedBox(height: 12),
           _postConteudo(pub),
-          if (pub.temMidia) ...[appSizedBox(height: 12), _midiaPreview(pub)],
+          if (pub.temImagens) ...[appSizedBox(height: 12), _imagensPreview(pub)],
         ],
       ),
     );

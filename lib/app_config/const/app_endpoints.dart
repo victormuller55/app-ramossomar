@@ -10,6 +10,7 @@ String fotoUrl(String? path) {
 }
 
 class AppEndpoints {
+
   // Auth
   static String endpointAuthLogin = '$api/auth/login';
 
@@ -17,6 +18,7 @@ class AppEndpoints {
   static String endpointUsuarios = '$api/usuarios';
   static String endpointUsuariosNovo = '$api/usuarios/novo';
   static String endpointUsuariosAlterar = '$api/usuarios/alterar-dados';
+  static String endpointUsuariosUploadImagem = '$api/usuarios/upload-imagem';
   static String endpointUsuariosApagar = '$api/usuarios/apagar';
 
   // Apoiadores
@@ -35,10 +37,23 @@ class AppEndpoints {
   static String endpointPublicacoes = '$api/publicacoes';
   static String endpointPublicacoesNovo = '$api/publicacoes/novo';
   static String endpointPublicacoesAlterar = '$api/publicacoes/alterar-dados';
+  static String endpointPublicacoesUploadImagens = '$api/publicacoes/upload-imagens';
   static String endpointPublicacoesApagar = '$api/publicacoes/apagar';
 
   // Relatórios
   static String endpointRelatoriosApoiadores = '$api/relatorios/apoiadores';
+
+  // Cidades
+  static String endpointCidades = '$api/cidades';
+  static String endpointCidadesPorId = '$api/cidades/por-id';
+  static String endpointCidadesPorCodigoIbge = '$api/cidades/por-codigo-ibge';
+
+  // Locais de votação
+  static String endpointLocaisVotacao = '$api/locais-votacao';
+  static String endpointLocaisVotacaoPorId = '$api/locais-votacao/por-id';
+  static String endpointLocaisVotacaoNovo = '$api/locais-votacao/novo';
+  static String endpointLocaisVotacaoAlterar = '$api/locais-votacao/alterar-dados';
+  static String endpointLocaisVotacaoApagar = '$api/locais-votacao/apagar';
 
   // Tokens refresh
   static String endpointTokensRefresh = '$api/tokens-refresh';

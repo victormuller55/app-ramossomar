@@ -141,6 +141,42 @@ Future<AppResponse> putMultipart({
   );
 }
 
+/// Upload multipart alinhado à API (campo de arquivo + query params).
+Future<AppResponse> postMultipartFiles({
+  required String endpoint,
+  required String fieldName,
+  required List<XFile> files,
+  Map<String, String>? parameters,
+}) async {
+  if (files.isEmpty) {
+    throw ArgumentError('Informe ao menos um arquivo para upload');
+  }
+
+  final uri = Uri.parse(endpoint + _query(parameters));
+  final request = http.MultipartRequest('POST', uri);
+  request.headers.addAll(await getAuthHeaders());
+
+  for (final file in files) {
+    final bytes = await file.readAsBytes();
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: file.name,
+        contentType: _mediaTypeFromName(file.name),
+      ),
+    );
+  }
+
+  final response = await _request(
+    () => request.send().then(http.Response.fromStream),
+  );
+  return AppResponse(
+    statusCode: response.statusCode,
+    body: utf8.decode(response.bodyBytes),
+  );
+}
+
 Future<AppResponse> _sendMultipart({
   required String method,
   required String endpoint,
@@ -185,12 +221,13 @@ MediaType? _mediaTypeFromName(String name) {
   final lower = name.toLowerCase();
   if (lower.endsWith('.png')) return MediaType('image', 'png');
   if (lower.endsWith('.webp')) return MediaType('image', 'webp');
+  if (lower.endsWith('.gif')) return MediaType('image', 'gif');
   return MediaType('image', 'jpeg');
 }
 
 String _query(Map<String, String>? parameters) {
   if (parameters == null || parameters.isEmpty) return '';
-  return '?${parameters.entries.map((e) => '${e.key}=${e.value}').join('&')}';
+  return '?${parameters.entries.map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
 }
 
 ErrorModel parseApiError(Object e) => errorModelFromException(e);

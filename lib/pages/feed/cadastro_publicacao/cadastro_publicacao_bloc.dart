@@ -25,7 +25,7 @@ class CadastroPublicacaoBloc extends Bloc<CadastroPublicacaoEvent, CadastroPubli
       }
 
       event.publicacao.idAutor = idAutor;
-      await criarPublicacao(event.publicacao);
+      await criarPublicacao(event.publicacao, imagens: event.imagens);
       emit(CadastroPublicacaoSuccessState());
     } catch (e) {
       if (await tratarSessaoExpirada(e)) return;

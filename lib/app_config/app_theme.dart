@@ -7,6 +7,7 @@ const SystemUiOverlayStyle kAppSystemUiOverlay = SystemUiOverlayStyle(
   statusBarColor: RamosColors.primaryDark,
   statusBarIconBrightness: Brightness.light,
   statusBarBrightness: Brightness.dark,
+  systemStatusBarContrastEnforced: false,
   systemNavigationBarColor: RamosColors.primaryDark,
   systemNavigationBarIconBrightness: Brightness.light,
   systemNavigationBarDividerColor: RamosColors.primaryDark,

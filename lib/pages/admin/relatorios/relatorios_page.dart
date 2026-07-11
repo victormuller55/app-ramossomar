@@ -33,7 +33,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     _cidadeForm = AppFormField(
       context: context,
       hint: 'Filtrar por cidade (opcional)',
-      icon: const Icon(Icons.location_city_outlined),
+      icon: const Icon(Icons.location_city_rounded),
       iconColor: RamosColors.primary,
       inputColor: AppColors.grey900,
       hintColor: AppColors.grey600,

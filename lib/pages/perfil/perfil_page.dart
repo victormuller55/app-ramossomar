@@ -1,10 +1,12 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
+import 'package:app_ramos_candidatura/function/form_validation.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
@@ -31,6 +33,7 @@ class PerfilPage extends StatefulWidget {
 class _PerfilPageState extends State<PerfilPage> {
   final PerfilBloc bloc = PerfilBloc();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
 
   late final AppFormField _nomeForm;
   late final AppFormField _emailForm;
@@ -51,24 +54,24 @@ class _PerfilPageState extends State<PerfilPage> {
   void _criarCampos() {
     _nomeForm = _criarCampo(
       hint: 'Nome completo',
-      icon: Icons.person_outline_rounded,
+      icon: Icons.person_rounded,
       validator: validateNome,
     );
     _emailForm = _criarCampo(
       hint: 'E-mail',
-      icon: Icons.email_outlined,
+      icon: Icons.email_rounded,
       textInputType: TextInputType.emailAddress,
       validator: validateEmail,
     );
     _telefoneForm = _criarCampo(
       hint: 'Telefone',
-      icon: Icons.phone_outlined,
+      icon: Icons.phone_rounded,
       textInputType: TextInputType.phone,
       textInputFormatter: AppFormFormatters.telefone,
     );
     _senhaForm = _criarCampo(
       hint: 'Nova senha (opcional)',
-      icon: Icons.lock_outline_rounded,
+      icon: Icons.lock_rounded,
       textInputType: TextInputType.visiblePassword,
       showContent: false,
       validator: validateSenhaOpcional,
@@ -97,7 +100,7 @@ class _PerfilPageState extends State<PerfilPage> {
   }
 
   bool _validarFormulario() {
-    return _formKey.currentState?.validate() ?? false;
+    return validarFormularioComFeedback(_formKey);
   }
 
   void _salvarCadastro() {
@@ -117,6 +120,15 @@ class _PerfilPageState extends State<PerfilPage> {
     );
 
     bloc.add(PerfilSaveEvent(usuario: usuario));
+  }
+
+  Future<void> _alterarFoto() async {
+    final imagem = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (imagem == null) return;
+    bloc.add(PerfilUploadImagemEvent(imagem: imagem));
   }
 
   Future<void> _logout() async {
@@ -218,22 +230,38 @@ class _PerfilPageState extends State<PerfilPage> {
     final nome = _usuario?.nome ?? '?';
 
     return Center(
-      child: appContainer(
-        width: 96,
-        height: 96,
-        radius: BorderRadius.circular(360),
-        gradient: AppGradients.primary,
-        border: Border.all(color: RamosColors.secondary, width: 3),
-        child: ClipOval(
-          child: foto.isNotEmpty
-              ? Image.network(
-                  foto,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _avatarIniciais(nome);
-                  },
-                )
-              : _avatarIniciais(nome),
+      child: GestureDetector(
+        onTap: _alterarFoto,
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            appContainer(
+              width: 96,
+              height: 96,
+              radius: BorderRadius.circular(360),
+              gradient: AppGradients.primary,
+              border: Border.all(color: RamosColors.secondary, width: 3),
+              child: ClipOval(
+                child: foto.isNotEmpty
+                    ? Image.network(
+                        foto,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _avatarIniciais(nome);
+                        },
+                      )
+                    : _avatarIniciais(nome),
+              ),
+            ),
+            appContainer(
+              width: 30,
+              height: 30,
+              backgroundColor: RamosColors.primaryDark,
+              radius: BorderRadius.circular(360),
+              border: Border.all(color: AppColors.white, width: 2),
+              child: Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.white),
+            ),
+          ],
         ),
       ),
     );

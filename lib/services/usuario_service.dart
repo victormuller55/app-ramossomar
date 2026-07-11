@@ -1,4 +1,5 @@
-﻿import 'package:muller_package/muller_package.dart';
+﻿import 'package:image_picker/image_picker.dart';
+import 'package:muller_package/muller_package.dart';
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/service/http_helper.dart';
@@ -39,6 +40,18 @@ Future<AppResponse> putUsuario(Map<String, dynamic> body) async {
 Future<void> deleteUsuario(String id) async {
   await deleteJson(
     endpoint: AppEndpoints.endpointUsuariosApagar,
+    parameters: {'id': id},
+  );
+}
+
+Future<AppResponse> uploadImagemUsuario({
+  required String id,
+  required XFile imagem,
+}) async {
+  return postMultipartFiles(
+    endpoint: AppEndpoints.endpointUsuariosUploadImagem,
+    fieldName: 'imagem',
+    files: [imagem],
     parameters: {'id': id},
   );
 }

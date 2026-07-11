@@ -66,7 +66,6 @@ class UsuarioModel {
       'senha': senha ?? '',
       'perfil': tipo ?? 'LIDER',
       if (telefone != null && telefone!.isNotEmpty) 'telefone': telefone,
-      if (foto != null && foto!.isNotEmpty) 'imagem': foto,
       'ativo': ativo ?? true,
     };
   }
@@ -79,7 +78,6 @@ class UsuarioModel {
       if (senha != null && senha!.isNotEmpty) 'senha': senha,
       'perfil': tipo,
       if (telefone != null) 'telefone': telefone,
-      if (foto != null) 'imagem': foto,
       'ativo': ativo ?? true,
     };
   }
