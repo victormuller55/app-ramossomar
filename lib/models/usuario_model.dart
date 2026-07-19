@@ -10,6 +10,7 @@ class UsuarioModel {
   String? refreshToken;
   String? foto;
   String? expiraEm;
+  int? totalApoiadores;
 
   UsuarioModel({
     this.id,
@@ -23,6 +24,7 @@ class UsuarioModel {
     this.refreshToken,
     this.foto,
     this.expiraEm,
+    this.totalApoiadores,
   });
 
   factory UsuarioModel.empty() {
@@ -38,6 +40,7 @@ class UsuarioModel {
       refreshToken: null,
       foto: null,
       expiraEm: null,
+      totalApoiadores: null,
     );
   }
 
@@ -57,6 +60,12 @@ class UsuarioModel {
     refreshToken = json['refresh_token']?.toString();
     foto = (json['imagem'] ?? json['foto'])?.toString();
     expiraEm = json['expira_em']?.toString();
+    final total = json['total_apoiadores'] ?? json['qtd_cadastrados'] ?? json['totalApoiadores'];
+    if (total is int) {
+      totalApoiadores = total;
+    } else if (total != null) {
+      totalApoiadores = int.tryParse(total.toString());
+    }
   }
 
   Map<String, dynamic> toJsonCadastro() {

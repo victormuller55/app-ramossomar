@@ -7,11 +7,13 @@ import 'package:path_provider/path_provider.dart';
 Future<String> exportarRelatorioApoiadores({
   required String formato,
   String? cidade,
+  String? localVotacao,
   String? intencaoVoto,
 }) async {
   final bytes = await downloadRelatorioApoiadores(
     formato: formato,
     cidade: cidade,
+    localVotacao: localVotacao,
     intencaoVoto: intencaoVoto,
   );
 

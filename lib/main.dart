@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:app_ramos_candidatura/app_config/app_theme.dart';
-import 'package:app_ramos_candidatura/app_config/app_widget.dart';
+ import 'package:app_ramos_candidatura/app_config/app_widget.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

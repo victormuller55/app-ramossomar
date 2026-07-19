@@ -144,7 +144,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
       borderColor: AppColors.grey200,
       hoverBorderColor: RamosColors.primary,
       radius: 14,
-      textInputType: textInputType,
+      textInputType: textInputType ?? TextInputType.text,
       validator: validator,
       maxLines: maxLines,
     );

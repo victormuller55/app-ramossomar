@@ -621,7 +621,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       borderColor: AppColors.grey200,
       hoverBorderColor: RamosColors.primary,
       radius: 14,
-      textInputType: textInputType,
+      textInputType: textInputType ?? TextInputType.text,
       textInputFormatter: textInputFormatter,
       validator: validator,
       onChange: onChange,

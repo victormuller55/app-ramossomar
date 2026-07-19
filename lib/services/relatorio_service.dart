@@ -6,6 +6,7 @@ import 'package:app_ramos_candidatura/function/service/http_helper.dart';
 Future<Uint8List> downloadRelatorioApoiadores({
   required String formato,
   String? cidade,
+  String? localVotacao,
   String? intencaoVoto,
   String? idLider,
 }) async {
@@ -13,6 +14,9 @@ Future<Uint8List> downloadRelatorioApoiadores({
     'formato': formato,
   };
   if (cidade != null && cidade.isNotEmpty) params['cidade'] = cidade;
+  if (localVotacao != null && localVotacao.isNotEmpty) {
+    params['local_votacao'] = localVotacao;
+  }
   if (intencaoVoto != null && intencaoVoto.isNotEmpty) {
     params['intencao_voto'] = intencaoVoto;
   }

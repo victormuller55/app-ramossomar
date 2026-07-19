@@ -19,6 +19,7 @@ class RelatoriosBloc extends Bloc<RelatoriosEvent, RelatoriosState> {
       final path = await exportarRelatorioApoiadores(
         formato: event.formato,
         cidade: event.cidade,
+        localVotacao: event.localVotacao,
         intencaoVoto: event.intencaoVoto,
       );
       emit(RelatoriosSuccessState(filePath: path, formato: event.formato));

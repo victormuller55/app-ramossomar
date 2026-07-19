@@ -218,7 +218,7 @@ class _PerfilPageState extends State<PerfilPage> {
       borderColor: AppColors.grey200,
       hoverBorderColor: RamosColors.primary,
       radius: 14,
-      textInputType: textInputType,
+      textInputType: textInputType ?? TextInputType.text,
       textInputFormatter: textInputFormatter,
       validator: validator,
       showContent: showContent,

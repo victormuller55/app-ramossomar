@@ -165,22 +165,21 @@ class _LoginPageState extends State<LoginPage> {
       child: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: appContainer(
-          width: double.infinity,
-          height: double.infinity,
-          gradient: AppGradients.loginPanel,
-          child: Column(
-            children: [
-              Expanded(
-                flex: keyboardOpen ? 12 : 35,
+        child: Column(
+          children: [
+            Expanded(
+              flex: keyboardOpen ? 12 : 35,
+              child: appContainer(
+                width: double.infinity,
+                gradient: AppGradients.loginPanel,
                 child: _brandHeader(),
               ),
-              Expanded(
-                flex: keyboardOpen ? 88 : 65,
-                child: _loginSheet(),
-              ),
-            ],
-          ),
+            ),
+            Expanded(
+              flex: keyboardOpen ? 88 : 65,
+              child: _loginSheet(),
+            ),
+          ],
         ),
       ),
     );
@@ -202,14 +201,12 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     _aplicarSystemUi();
 
+    // Scaffold nativo: o scaffold do muller_package envolve o body em SafeArea
+    // e no iOS a faixa do home indicator fica com o fundo verde.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: loginSystemUi,
-      child: scaffold(
-        appBarColor: RamosColors.primaryDark,
-        title: AppStrings.vazio,
-        showAppBar: false,
-        background: RamosColors.primaryDark,
-        hideBackIcon: true,
+      child: Scaffold(
+        backgroundColor: AppColors.white,
         body: _bodyBuilder(),
       ),
     );

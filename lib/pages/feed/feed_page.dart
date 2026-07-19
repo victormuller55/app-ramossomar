@@ -11,6 +11,7 @@ import 'package:app_ramos_candidatura/widgets/app_confirm_dialog.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:app_ramos_candidatura/widgets/empty.dart';
 import 'package:app_ramos_candidatura/widgets/ramos_add_fab.dart';
+import 'package:app_ramos_candidatura/widgets/ramos_image_gallery.dart';
 import 'package:app_ramos_candidatura/widgets/ramos_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -249,16 +250,38 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  String _heroTagImagem(PublicacaoModel pub, int index) {
+    final id = pub.id?.isNotEmpty == true ? pub.id! : pub.hashCode.toString();
+    return 'feed-img-$id-$index';
+  }
+
   Widget _imagemNetwork(String url) {
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      errorBuilder: (context, error, stackTrace) => _imagemFallback(),
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return const RamosShimmer(width: double.infinity, height: double.infinity);
-      },
+    return RotatedBox(
+      quarterTurns: 1,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) => _imagemFallback(),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const RamosShimmer(width: double.infinity, height: double.infinity);
+        },
+      ),
+    );
+  }
+
+  void _abrirGaleria(
+    List<String> urls, {
+    required List<String> heroTags,
+    int initialIndex = 0,
+  }) {
+    openRamosImageGallery(
+      context,
+      urls: urls,
+      heroTags: heroTags,
+      initialIndex: initialIndex,
     );
   }
 
@@ -266,21 +289,30 @@ class _FeedPageState extends State<FeedPage> {
     final urls = pub.imagens.map(fotoUrl).where((u) => u.isNotEmpty).toList();
     if (urls.isEmpty) return const SizedBox.shrink();
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Stack(
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 10,
-            child: urls.length == 1
-                ? _imagemNetwork(urls.first)
-                : PageView.builder(
-                    itemCount: urls.length,
-                    itemBuilder: (context, index) => _imagemNetwork(urls[index]),
-                  ),
-          ),
-          Positioned(top: 12, left: 12, child: _imagensBadge(urls.length)),
-        ],
+    final heroTags = List<String>.generate(
+      urls.length,
+      (index) => _heroTagImagem(pub, index),
+    );
+
+    return GestureDetector(
+      onTap: () => _abrirGaleria(urls, heroTags: heroTags),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Hero(
+                tag: heroTags.first,
+                child: Material(
+                  color: Colors.transparent,
+                  child: _imagemNetwork(urls.first),
+                ),
+              ),
+            ),
+            Positioned(top: 12, left: 12, child: _imagensBadge(urls.length)),
+          ],
+        ),
       ),
     );
   }
@@ -447,7 +479,10 @@ class _FeedPageState extends State<FeedPage> {
       hideBackIcon: true,
       centerTitle: true,
       floatingActionButton: widget.showAddFab
-          ? ramosAddFab(onTap: () => _abrirCadastro())
+          ? ramosAddFab(
+              onTap: () => _abrirCadastro(),
+              heroTag: 'fab-feed-add',
+            )
           : null,
       body: _bodyBuilder(),
     );

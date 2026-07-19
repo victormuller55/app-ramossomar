@@ -57,6 +57,7 @@ class _CadastradosPageState extends State<CadastradosPage> {
       borderColor: AppColors.grey200,
       hoverBorderColor: RamosColors.primary,
       radius: 16,
+      textInputType: TextInputType.text,
       onChange: _buscar,
     );
   }
@@ -529,7 +530,10 @@ class _CadastradosPageState extends State<CadastradosPage> {
       drawerColor: AppColors.white,
       hideBackIcon: true,
       centerTitle: true,
-      floatingActionButton: ramosAddFab(onTap: _adicionarApoiador),
+      floatingActionButton: ramosAddFab(
+        onTap: _adicionarApoiador,
+        heroTag: 'fab-cadastrados-add',
+      ),
       actions: [
         if (widget.showProfileInHeader)
           IconButton(
