@@ -67,23 +67,20 @@ class _RamosImageGalleryPageState extends State<RamosImageGalleryPage> {
   }
 
   Widget _imagem(String url, int index) {
-    Widget image = RotatedBox(
-      quarterTurns: 1,
-      child: Image.network(
-        url,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Icon(
-            Icons.broken_image_outlined,
-            color: AppColors.white.withValues(alpha: 0.7),
-            size: 48,
-          );
-        },
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const RamosShimmer(width: 120, height: 120);
-        },
-      ),
+    Widget image = Image.network(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.broken_image_outlined,
+          color: AppColors.white.withValues(alpha: 0.7),
+          size: 48,
+        );
+      },
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const RamosShimmer(width: 120, height: 120);
+      },
     );
 
     final tag = _heroTag(index);

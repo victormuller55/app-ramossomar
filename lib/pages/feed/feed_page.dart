@@ -256,19 +256,16 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Widget _imagemNetwork(String url) {
-    return RotatedBox(
-      quarterTurns: 1,
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => _imagemFallback(),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const RamosShimmer(width: double.infinity, height: double.infinity);
-        },
-      ),
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) => _imagemFallback(),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const RamosShimmer(width: double.infinity, height: double.infinity);
+      },
     );
   }
 
