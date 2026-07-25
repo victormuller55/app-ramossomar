@@ -1,6 +1,5 @@
 ﻿import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart';
-import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/service/http_helper.dart';
 
@@ -16,10 +15,9 @@ Future<AppResponse> getUsuarios({
   if (perfil != null && perfil.isNotEmpty) params['perfil'] = perfil;
   if (ativo != null) params['ativo'] = ativo.toString();
 
-  return getHTTP(
+  return getJson(
     endpoint: AppEndpoints.endpointUsuarios,
     parameters: params.isEmpty ? null : params,
-    headers: await getAuthHeaders(),
   );
 }
 

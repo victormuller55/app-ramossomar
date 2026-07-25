@@ -5,6 +5,7 @@ import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes
 import 'package:app_ramos_candidatura/app_config/app_enums.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/function/form_validation.dart';
+import 'package:app_ramos_candidatura/function/haptic.dart';
 import 'package:app_ramos_candidatura/function/service/session_expired.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
@@ -47,7 +48,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
   late final AppFormField _localVotacaoForm;
   late final AppFormField _observacoesForm;
 
-  String _intencaoVoto = IntencaoVoto.indeciso;
+  String? _intencaoVoto;
   bool _buscandoCep = false;
   String? _ultimoCepBuscado;
   bool _isEdit = false;
@@ -79,7 +80,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       icon: Icons.badge_rounded,
       textInputType: TextInputType.number,
       textInputFormatter: AppFormFormatters.cpf,
-      validator: validateCpf,
+      validator: validateCpfOpcional,
     );
     _dataNascimentoForm = _criarCampo(
       hint: 'Data de nascimento',
@@ -129,6 +130,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       icon: Icons.location_on_rounded,
       showKeyboard: false,
       onTap: _abrirSeletorCidade,
+      validator: validateCidade,
       suffixIcon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: AppColors.grey600,
@@ -139,6 +141,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       icon: Icons.how_to_vote_rounded,
       showKeyboard: false,
       onTap: _abrirSeletorLocal,
+      validator: validateLocalVotacao,
       suffixIcon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: AppColors.grey600,
@@ -166,7 +169,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     _complementoForm.controller.text = apo.complemento ?? '';
     _bairroForm.controller.text = apo.bairro ?? '';
     _observacoesForm.controller.text = apo.observacoes ?? '';
-    _intencaoVoto = apo.intencaoVoto ?? IntencaoVoto.indeciso;
+    _intencaoVoto = apo.intencaoVoto;
     final cepDigits = (apo.cep ?? '').replaceAll(RegExp(r'\D'), '');
     if (cepDigits.length == 8) _ultimoCepBuscado = cepDigits;
   }
@@ -555,7 +558,23 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
   }
 
   bool _validarFormulario() {
-    return validarFormularioComFeedback(_formKey);
+    final formOk = validarFormularioComFeedback(_formKey);
+
+    String? extraErro;
+    if (_cidadeSelecionada == null) {
+      extraErro = 'Cidade é obrigatória';
+    } else if (_localSelecionado == null) {
+      extraErro = 'Local de votação é obrigatório';
+    } else if (_intencaoVoto == null || _intencaoVoto!.isEmpty) {
+      extraErro = 'Selecione a intenção de voto';
+    }
+
+    if (extraErro != null) {
+      showToastWarning(message: extraErro);
+      if (formOk) vibrateErrorFeedback();
+      return false;
+    }
+    return formOk;
   }
 
   void _salvarCadastro() {
@@ -565,7 +584,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       id: widget.apoiador?.id,
       idLider: widget.apoiador?.idLider,
       nome: _nomeForm.value.trim(),
-      cpf: _cpfForm.value,
+      cpf: _valorOpcional(_cpfForm.value),
       dataNascimento: _dataIso(_dataNascimentoForm.value),
       telefone: _valorOpcional(_telefoneForm.value),
       whatsapp: _valorOpcional(_whatsappForm.value),
@@ -574,8 +593,8 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       numero: _valorOpcional(_numeroForm.value),
       complemento: _valorOpcional(_complementoForm.value),
       bairro: _valorOpcional(_bairroForm.value),
-      cidade: _valorOpcional(_cidadeSelecionada?.nome),
-      localVotacao: _valorOpcional(_localSelecionado?.nome),
+      cidade: _cidadeSelecionada?.nome,
+      localVotacao: _localSelecionado?.nome,
       intencaoVoto: _intencaoVoto,
       observacoes: _valorOpcional(_observacoesForm.value),
     );

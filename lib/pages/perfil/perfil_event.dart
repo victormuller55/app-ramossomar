@@ -16,3 +16,5 @@ class PerfilUploadImagemEvent extends PerfilEvent {
 
   PerfilUploadImagemEvent({required this.imagem});
 }
+
+class PerfilDeleteEvent extends PerfilEvent {}

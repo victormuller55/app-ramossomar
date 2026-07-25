@@ -16,7 +16,16 @@ bool isSessaoExpirada(Object e) {
   final status = e.response.statusCode;
   if (status != 401 && status != 403) return false;
 
-  final body = e.response.body.toString().toUpperCase();
+  final bodyRaw = e.response.body.toString();
+  final body = bodyRaw.toUpperCase();
+
+  // Erros de client/credenciais não são sessão expirada.
+  if (body.contains('CLIENTE_INVALIDO') ||
+      body.contains('CREDENCIAIS_INVALIDAS') ||
+      body.contains('RATE_LIMIT')) {
+    return false;
+  }
+
   if (body.contains('NAO_AUTENTICADO') ||
       body.contains('TOKEN_INVALIDO') ||
       body.contains('TOKEN JWT') ||
@@ -28,10 +37,17 @@ bool isSessaoExpirada(Object e) {
     final map = jsonDecode(e.response.body) as Map<String, dynamic>;
     final erro = (map['erro'] ?? map['error'] ?? '').toString().toUpperCase();
     final mensagem = (map['mensagem'] ?? map['message'] ?? '').toString().toUpperCase();
+
+    if (erro.contains('CLIENTE_INVALIDO') ||
+        erro.contains('CREDENCIAIS_INVALIDAS')) {
+      return false;
+    }
+
     return erro.contains('NAO_AUTENTICADO') ||
         erro.contains('TOKEN_INVALIDO') ||
         mensagem.contains('TOKEN JWT');
   } catch (_) {
+    // 401 genérico em rota autenticada → trata como sessão inválida.
     return status == 401;
   }
 }

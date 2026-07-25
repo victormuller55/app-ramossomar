@@ -8,9 +8,22 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:muller_package/muller_package.dart';
 
+const int _maxRateLimitRetries = 1;
+const int _maxRetryAfterSeconds = 60;
+
 Future<http.Response> _request(Future<http.Response> Function() call) async {
   try {
-    final response = await call();
+    var response = await call();
+    var retries = 0;
+
+    while (response.statusCode == 429 && retries < _maxRateLimitRetries) {
+      final retryAfter = int.tryParse(response.headers['retry-after'] ?? '') ?? 1;
+      final waitSeconds = retryAfter.clamp(1, _maxRetryAfterSeconds);
+      await Future.delayed(Duration(seconds: waitSeconds));
+      response = await call();
+      retries++;
+    }
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
     }
@@ -23,15 +36,19 @@ Future<http.Response> _request(Future<http.Response> Function() call) async {
   }
 }
 
+Future<Map<String, String>> _jsonHeaders() async {
+  return {
+    'Content-Type': 'application/json; charset=UTF-8',
+    ...await getAuthHeaders(),
+  };
+}
+
 Future<AppResponse> postJson({
   required String endpoint,
   required Map<String, dynamic> body,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    ...await getAuthHeaders(),
-  };
+  final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   final response = await _request(
     () => http.post(uri, headers: headers, body: jsonEncode(body)),
@@ -44,10 +61,7 @@ Future<AppResponse> putJson({
   required Map<String, dynamic> body,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    ...await getAuthHeaders(),
-  };
+  final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   final response = await _request(
     () => http.put(uri, headers: headers, body: jsonEncode(body)),
@@ -59,10 +73,7 @@ Future<AppResponse> getJson({
   required String endpoint,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    ...await getAuthHeaders(),
-  };
+  final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   final response = await _request(() => http.get(uri, headers: headers));
   return AppResponse(
@@ -75,9 +86,7 @@ Future<Uint8List> getBytes({
   required String endpoint,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    ...await getAuthHeaders(),
-  };
+  final headers = await getAuthHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   final response = await _request(() => http.get(uri, headers: headers));
   return response.bodyBytes;
@@ -88,10 +97,7 @@ Future<AppResponse> patchJson({
   required Map<String, dynamic> body,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    ...await getAuthHeaders(),
-  };
+  final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   final response = await _request(
     () => http.patch(uri, headers: headers, body: jsonEncode(body)),
@@ -103,10 +109,7 @@ Future<void> deleteJson({
   required String endpoint,
   Map<String, String>? parameters,
 }) async {
-  final headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    ...await getAuthHeaders(),
-  };
+  final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
   await _request(() => http.delete(uri, headers: headers));
 }
@@ -153,24 +156,28 @@ Future<AppResponse> postMultipartFiles({
   }
 
   final uri = Uri.parse(endpoint + _query(parameters));
-  final request = http.MultipartRequest('POST', uri);
-  request.headers.addAll(await getAuthHeaders());
+  final authHeaders = await getAuthHeaders();
 
-  for (final file in files) {
-    final bytes = await file.readAsBytes();
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        fieldName,
-        bytes,
-        filename: file.name,
-        contentType: _mediaTypeFromName(file.name),
-      ),
-    );
+  Future<http.Response> send() async {
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll(authHeaders);
+
+    for (final file in files) {
+      final bytes = await file.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fieldName,
+          bytes,
+          filename: file.name,
+          contentType: _mediaTypeFromName(file.name),
+        ),
+      );
+    }
+
+    return request.send().then(http.Response.fromStream);
   }
 
-  final response = await _request(
-    () => request.send().then(http.Response.fromStream),
-  );
+  final response = await _request(send);
   return AppResponse(
     statusCode: response.statusCode,
     body: utf8.decode(response.bodyBytes),
@@ -185,32 +192,36 @@ Future<AppResponse> _sendMultipart({
   Map<String, String>? parameters,
 }) async {
   final uri = Uri.parse(endpoint + _query(parameters));
-  final request = http.MultipartRequest(method, uri);
-  request.headers.addAll(await getAuthHeaders());
+  final authHeaders = await getAuthHeaders();
+  final fotoBytes = foto != null ? await foto.readAsBytes() : null;
 
-  request.files.add(
-    http.MultipartFile.fromString(
-      'dados',
-      jsonEncode(dados),
-      contentType: MediaType('application', 'json'),
-    ),
-  );
+  Future<http.Response> send() async {
+    final request = http.MultipartRequest(method, uri);
+    request.headers.addAll(authHeaders);
 
-  if (foto != null) {
-    final bytes = await foto.readAsBytes();
     request.files.add(
-      http.MultipartFile.fromBytes(
-        'foto',
-        bytes,
-        filename: foto.name,
-        contentType: _mediaTypeFromName(foto.name),
+      http.MultipartFile.fromString(
+        'dados',
+        jsonEncode(dados),
+        contentType: MediaType('application', 'json'),
       ),
     );
+
+    if (foto != null && fotoBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'foto',
+          fotoBytes,
+          filename: foto.name,
+          contentType: _mediaTypeFromName(foto.name),
+        ),
+      );
+    }
+
+    return request.send().then(http.Response.fromStream);
   }
 
-  final response = await _request(
-    () => request.send().then(http.Response.fromStream),
-  );
+  final response = await _request(send);
   return AppResponse(
     statusCode: response.statusCode,
     body: utf8.decode(response.bodyBytes),

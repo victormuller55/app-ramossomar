@@ -71,3 +71,23 @@ Future<UsuarioModel> uploadImagemPerfil(XFile imagem) async {
   await saveUsuarioLogado(atualizado);
   return atualizado;
 }
+
+/// Exclui a conta do usuário logado na API e limpa a sessão local.
+Future<void> excluirConta() async {
+  final atual = await carregarPerfil();
+  final id = atual.id;
+  if (id == null || id.isEmpty) {
+    throw ApiException(
+      AppResponse(
+        statusCode: 401,
+        body: jsonEncode({
+          'mensagem': 'Sessão inválida. Faça login novamente.',
+          'erro': 'NAO_AUTENTICADO',
+        }),
+      ),
+    );
+  }
+
+  await deleteUsuario(id);
+  await clearToken();
+}

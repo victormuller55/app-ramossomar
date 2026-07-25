@@ -37,6 +37,25 @@ String? validateCpf(String? value) {
   return null;
 }
 
+String? validateCpfOpcional(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  final digits = value.replaceAll(RegExp(r'\D'), '');
+  if (digits.length != 11 || !validaCPF(digits)) return 'CPF inválido';
+  return null;
+}
+
+String? validateCidade(String? value) {
+  if (value == null || value.trim().isEmpty) return 'Cidade é obrigatória';
+  return null;
+}
+
+String? validateLocalVotacao(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return 'Local de votação é obrigatório';
+  }
+  return null;
+}
+
 String? validateNome(String? value) {
   if (value == null || value.trim().isEmpty) return 'Nome é obrigatório';
   if (value.trim().length < 3) return 'Informe o nome completo';

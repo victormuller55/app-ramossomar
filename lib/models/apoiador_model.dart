@@ -125,10 +125,11 @@ class ApoiadorModel {
   }
 
   Map<String, dynamic> toJsonCadastro() {
+    final cpfDigits = (cpf ?? '').replaceAll(RegExp(r'\D'), '');
     return {
       'id_lider': idLider,
       'nome': nome ?? '',
-      'cpf': (cpf ?? '').replaceAll(RegExp(r'\D'), ''),
+      if (cpfDigits.isNotEmpty) 'cpf': cpfDigits,
       if (dataNascimento != null && dataNascimento!.isNotEmpty) 'data_nascimento': dataNascimento,
       if (telefone != null && telefone!.trim().isNotEmpty)'telefone': telefone!.replaceAll(RegExp(r'\D'), ''),
       if (whatsapp != null && whatsapp!.trim().isNotEmpty)'whatsapp': whatsapp!.replaceAll(RegExp(r'\D'), ''),
@@ -137,8 +138,8 @@ class ApoiadorModel {
       if (numero != null && numero!.trim().isNotEmpty) 'numero': numero,
       if (complemento != null && complemento!.trim().isNotEmpty) 'complemento': complemento,
       if (bairro != null && bairro!.trim().isNotEmpty) 'bairro': bairro,
-      if (cidade != null && cidade!.trim().isNotEmpty) 'cidade': cidade,
-      if (localVotacao != null && localVotacao!.trim().isNotEmpty) 'local_votacao': localVotacao,
+      'cidade': cidade ?? '',
+      'local_votacao': localVotacao ?? '',
       'intencao_voto': intencaoVoto,
       if (observacoes != null && observacoes!.trim().isNotEmpty) 'observacoes': observacoes,
     };

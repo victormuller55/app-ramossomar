@@ -10,11 +10,8 @@ Widget appDialogHeader({
 }) {
   return appContainer(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-    backgroundColor: AppColors.black.withValues(alpha: 0.9),
+    backgroundColor: RamosColors.primary,
     radius: const BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
-    border: Border(
-      bottom: BorderSide(color: RamosColors.primary.withValues(alpha: 0.15)),
-    ),
     child: Row(
       children: [
         _dialogHeaderIcon(icon),
@@ -30,9 +27,9 @@ Widget _dialogHeaderIcon(IconData icon) {
   return appContainer(
     width: 32,
     height: 32,
-    backgroundColor: AppColors.grey900,
+    backgroundColor: RamosColors.primaryDark,
     radius: BorderRadius.circular(6),
-    border: Border.all(color: RamosColors.primary.withValues(alpha: 0.22)),
+    border: Border.all(color: AppColors.white.withValues(alpha: 0.22)),
     child: Center(child: Icon(icon, color: AppColors.white, size: 18)),
   );
 }

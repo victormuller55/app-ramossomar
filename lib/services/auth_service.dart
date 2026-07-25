@@ -1,11 +1,12 @@
 import 'package:muller_package/muller_package.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
+import 'package:app_ramos_candidatura/function/service/http_helper.dart';
 
 Future<AppResponse> postAuthLogin({
   required String email,
   required String senha,
 }) async {
-  return postHTTP(
+  return postJson(
     endpoint: AppEndpoints.endpointAuthLogin,
     body: {
       'email': email,

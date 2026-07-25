@@ -1,10 +1,8 @@
-﻿import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
-import 'package:app_ramos_candidatura/app_config/app_theme.dart';
+﻿import 'package:app_ramos_candidatura/app_config/app_theme.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/function/form_validation.dart';
+import 'package:app_ramos_candidatura/function/open_privacy_policy.dart';
+import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_bloc.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_event.dart';
@@ -13,6 +11,10 @@ import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:app_ramos_candidatura/widgets/app_logo.dart';
 import 'package:app_ramos_candidatura/widgets/login/login_form_field.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
 
   late final LoginFormField _loginForm;
   late final LoginFormField _passwordForm;
+  bool _aceitouPolitica = false;
 
   /// Status bar verde + navigation bar branca (login).
   static const SystemUiOverlayStyle loginSystemUi = SystemUiOverlayStyle(
@@ -72,8 +75,67 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _salvarLogin() {
+    if (!_aceitouPolitica) {
+      showToastWarning(message: 'Aceite a política de privacidade para continuar');
+      return;
+    }
     if (!_validarFormulario()) return;
     bloc.add(EntrarLoginEvent(_loginForm.value, _passwordForm.value));
+  }
+
+  Widget _politicaCheckbox() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F6F6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: CheckboxListTile(
+          value: _aceitouPolitica,
+          onChanged: (value) => setState(() => _aceitouPolitica = value ?? false),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          dense: true,
+          controlAffinity: ListTileControlAffinity.trailing,
+          activeColor: RamosColors.primary,
+          side: BorderSide(color: AppColors.grey400),
+          checkboxShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          title: Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: 'lato',
+                fontSize: AppFontSizes.verySmall,
+                color: AppColors.grey900,
+              ),
+              children: [
+                const TextSpan(text: 'Li e Aceito a '),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GestureDetector(
+                    onTap: openPrivacyPolicy,
+                    child: Text(
+                      'Politica de Privacidade',
+                      style: TextStyle(
+                        fontFamily: 'lato',
+                        fontSize: AppFontSizes.verySmall,
+                        color: RamosColors.primary,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: RamosColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _brandHeader() {
@@ -81,9 +143,7 @@ class _LoginPageState extends State<LoginPage> {
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
-        child: Center(
-          child: appLogoRamos(alignment: Alignment.center),
-        ),
+        child: Center(child: appLogoRamos(alignment: Alignment.center)),
       ),
     );
   }
@@ -125,12 +185,9 @@ class _LoginPageState extends State<LoginPage> {
               appSizedBox(height: 18),
               _loginForm.formulario,
               _passwordForm.formulario,
+              _politicaCheckbox(),
               appSizedBox(height: 20),
-              appElevatedButtonRamos(
-                title: AppStrings.entrar,
-                onTap: _salvarLogin,
-                height: 52,
-              ),
+              appElevatedButtonRamos(title: AppStrings.entrar, onTap: _salvarLogin, height: 52),
               appSizedBox(height: 28),
               appText(
                 'Powered by Convertix',
@@ -175,10 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: _brandHeader(),
               ),
             ),
-            Expanded(
-              flex: keyboardOpen ? 88 : 65,
-              child: _loginSheet(),
-            ),
+            Expanded(flex: keyboardOpen ? 88 : 65, child: _loginSheet()),
           ],
         ),
       ),
@@ -205,10 +259,7 @@ class _LoginPageState extends State<LoginPage> {
     // e no iOS a faixa do home indicator fica com o fundo verde.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: loginSystemUi,
-      child: Scaffold(
-        backgroundColor: AppColors.white,
-        body: _bodyBuilder(),
-      ),
+      child: Scaffold(backgroundColor: AppColors.white, body: _bodyBuilder()),
     );
   }
 

@@ -1,5 +1,7 @@
 /// Base da API de produção.
 const String server = 'https://ramossomar.api.convertix.net.br';
+// const String server = 'http://localhost:7000';
+
 
 String get api => '$server/api/v1/ramossomar';
 

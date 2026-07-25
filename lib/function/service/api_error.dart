@@ -16,9 +16,13 @@ ErrorModel errorModelFromException(Object e) {
           map.containsKey('message') ||
           map.containsKey('erro') ||
           map.containsKey('error')) {
-        return ErrorResponseModel.fromMap(map).toErrorModel();
+        final model = ErrorResponseModel.fromMap(map).toErrorModel();
+        return _normalizeKnownErrors(e.response.statusCode, model);
       }
-      return ErrorModel.fromMap(map);
+      return _normalizeKnownErrors(
+        e.response.statusCode,
+        ErrorModel.fromMap(map),
+      );
     } catch (_) {
       return _fallbackError(e.response.statusCode, body: body);
     }
@@ -27,12 +31,41 @@ ErrorModel errorModelFromException(Object e) {
   return ErrorModel.empty();
 }
 
+ErrorModel _normalizeKnownErrors(int statusCode, ErrorModel model) {
+  final erro = (model.erro ?? '').toUpperCase();
+  if (statusCode == 401 &&
+      (erro.contains('CREDENCIAIS_INVALIDAS') || erro.isEmpty)) {
+    return ErrorModel(
+      mensagem: 'Usuário ou senha inválidos.',
+      erro: model.erro ?? '',
+      tipo: model.tipo ?? '$statusCode',
+    );
+  }
+  if (statusCode == 429 || erro.contains('RATE_LIMIT')) {
+    return ErrorModel(
+      mensagem: 'Muitas tentativas. Aguarde um momento e tente novamente.',
+      erro: model.erro ?? 'RATE_LIMIT',
+      tipo: model.tipo ?? '429',
+    );
+  }
+  if (statusCode == 401 && erro.contains('CLIENTE_INVALIDO')) {
+    return ErrorModel(
+      mensagem: 'App não autorizado a acessar a API. Atualize o aplicativo.',
+      erro: model.erro ?? '',
+      tipo: model.tipo ?? '$statusCode',
+    );
+  }
+  return model;
+}
+
 ErrorModel _fallbackError(int statusCode, {String? body}) {
   var mensagem = body ?? 'Erro desconhecido';
   if (statusCode == 401) {
-    mensagem = 'E-mail ou senha inválidos.';
+    mensagem = 'Usuário ou senha inválidos.';
   } else if (statusCode == 403) {
     mensagem = 'Sem permissão para acessar este recurso.';
+  } else if (statusCode == 429) {
+    mensagem = 'Muitas tentativas. Aguarde um momento e tente novamente.';
   }
   return ErrorModel(mensagem: mensagem, erro: body ?? '', tipo: '$statusCode');
 }

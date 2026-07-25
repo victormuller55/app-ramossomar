@@ -19,6 +19,8 @@ class PerfilSuccessState extends PerfilState {
   PerfilSuccessState({required this.usuario});
 }
 
+class PerfilDeletedState extends PerfilState {}
+
 class PerfilErrorState extends PerfilState {
   final ErrorModel errorModel;
 

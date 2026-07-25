@@ -1,5 +1,4 @@
 import 'package:muller_package/muller_package.dart';
-import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/service/http_helper.dart';
 
@@ -19,10 +18,9 @@ Future<AppResponse> getApoiadores({
   }
   if (cpf != null && cpf.isNotEmpty) params['cpf'] = cpf;
 
-  return getHTTP(
+  return getJson(
     endpoint: AppEndpoints.endpointApoiadores,
     parameters: params.isEmpty ? null : params,
-    headers: await getAuthHeaders(),
   );
 }
 

@@ -1,13 +1,8 @@
-﻿import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
-import 'package:app_ramos_candidatura/app_config/app_auth.dart';
+﻿import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/form_validation.dart';
+import 'package:app_ramos_candidatura/function/open_privacy_policy.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
@@ -18,14 +13,18 @@ import 'package:app_ramos_candidatura/pages/perfil/perfil_state.dart';
 import 'package:app_ramos_candidatura/widgets/app_confirm_dialog.dart';
 import 'package:app_ramos_candidatura/widgets/app_elevated_button.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:muller_package/muller_package.dart'
+    hide AppRadius, AppFontSizes, AppSpacing, AppFormFormatters;
 
 class PerfilPage extends StatefulWidget {
   final bool showBackButton;
 
-  const PerfilPage({
-    super.key,
-    this.showBackButton = false,
-  });
+  const PerfilPage({super.key, this.showBackButton = false});
 
   @override
   State<PerfilPage> createState() => _PerfilPageState();
@@ -124,10 +123,7 @@ class _PerfilPageState extends State<PerfilPage> {
   }
 
   Future<void> _alterarFoto() async {
-    final imagem = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 95,
-    );
+    final imagem = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 95);
     if (imagem == null) return;
 
     final cropped = await ImageCropper().cropImage(
@@ -184,6 +180,20 @@ class _PerfilPageState extends State<PerfilPage> {
     open(screen: const LoginPage(), closePrevious: true);
   }
 
+  Future<void> _excluirConta() async {
+    final confirm = await showAppConfirmDialog(
+      context,
+      title: 'Excluir conta',
+      message:
+          'Esta ação é permanente. Seus dados de acesso serão removidos e você perderá o acesso ao app. Deseja continuar?',
+      icon: Icons.delete_forever_rounded,
+      confirmLabel: 'Excluir conta',
+      destructive: true,
+    );
+    if (confirm != true) return;
+    bloc.add(PerfilDeleteEvent());
+  }
+
   void _onStateChanged(PerfilState state) {
     if (state is PerfilLoadedState) {
       _preencherFormulario(state.usuario);
@@ -192,6 +202,11 @@ class _PerfilPageState extends State<PerfilPage> {
     if (state is PerfilSuccessState) {
       _preencherFormulario(state.usuario);
       showToastSuccess(message: 'Perfil atualizado com sucesso');
+      return;
+    }
+    if (state is PerfilDeletedState) {
+      showToastSuccess(message: 'Conta excluída com sucesso');
+      open(screen: const LoginPage(), closePrevious: true);
       return;
     }
     if (state is PerfilErrorState) {
@@ -231,12 +246,7 @@ class _PerfilPageState extends State<PerfilPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          appText(
-            title,
-            bold: true,
-            color: RamosColors.primaryDark,
-            fontSize: AppFontSizes.small,
-          ),
+          appText(title, bold: true, color: RamosColors.primaryDark, fontSize: AppFontSizes.small),
           if (subtitle != null) ...[
             appSizedBox(height: 4),
             appText(subtitle, color: AppColors.grey600, fontSize: 12),
@@ -255,12 +265,7 @@ class _PerfilPageState extends State<PerfilPage> {
 
   Widget _avatarIniciais(String nome) {
     return Center(
-      child: appText(
-        _iniciais(nome),
-        color: AppColors.white,
-        bold: true,
-        fontSize: 28,
-      ),
+      child: appText(_iniciais(nome), color: AppColors.white, bold: true, fontSize: 28),
     );
   }
 
@@ -311,8 +316,9 @@ class _PerfilPageState extends State<PerfilPage> {
     return Center(
       child: appContainer(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        backgroundColor: (isAdmin ? const Color(0xFF5A7A12) : RamosColors.primary)
-            .withValues(alpha: 0.12),
+        backgroundColor: (isAdmin ? const Color(0xFF5A7A12) : RamosColors.primary).withValues(
+          alpha: 0.12,
+        ),
         radius: BorderRadius.circular(20),
         child: appText(
           isAdmin ? 'Administrador' : 'Líder',
@@ -365,12 +371,31 @@ class _PerfilPageState extends State<PerfilPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          'Segurança',
-          subtitle: 'Deixe em branco para manter a senha atual',
-        ),
+        _sectionHeader('Segurança', subtitle: 'Deixe em branco para manter a senha atual'),
         _senhaForm.formulario,
       ],
+    );
+  }
+
+  Widget _politicaPrivacidadeButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: openPrivacyPolicy,
+        icon: Icon(Icons.privacy_tip_outlined, color: RamosColors.primary),
+        label: appText(
+          'Política de privacidade',
+          bold: true,
+          color: RamosColors.primary,
+          fontSize: AppFontSizes.verySmall,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: RamosColors.primary,
+          side: BorderSide(color: RamosColors.primary.withValues(alpha: 0.45)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
     );
   }
 
@@ -390,9 +415,29 @@ class _PerfilPageState extends State<PerfilPage> {
           foregroundColor: AppColors.red,
           side: BorderSide(color: AppColors.red),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  Widget _excluirContaButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _excluirConta,
+        icon: Icon(Icons.delete_forever_rounded, color: AppColors.red),
+        label: appText(
+          'Excluir minha conta',
+          bold: true,
+          color: AppColors.red,
+          fontSize: AppFontSizes.verySmall,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.red,
+          side: BorderSide(color: AppColors.red),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -410,12 +455,13 @@ class _PerfilPageState extends State<PerfilPage> {
           _sectionDivider(),
           _senhaSection(),
           appSizedBox(height: 24),
-          appElevatedButtonRamos(
-            title: 'Salvar alterações',
-            onTap: _salvarCadastro,
-          ),
+          appElevatedButtonRamos(title: 'Salvar alterações', onTap: _salvarCadastro),
           appSizedBox(height: 16),
+          _politicaPrivacidadeButton(),
+          appSizedBox(height: 12),
           _logoutButton(),
+          appSizedBox(height: 8),
+          _excluirContaButton(),
         ],
       ),
     );
@@ -433,12 +479,14 @@ class _PerfilPageState extends State<PerfilPage> {
       bloc: bloc,
       listener: (context, state) => _onStateChanged(state),
       builder: (context, state) {
-        if (state is PerfilLoadingState || state is PerfilInitialState) {
+        if (state is PerfilLoadingState ||
+            state is PerfilInitialState ||
+            state is PerfilDeletedState) {
           return appLoadingRamos();
         }
         if (state is PerfilErrorState && _usuario == null) {
           return appError(
-            state.errorModel,
+            ErrorModel(tipo: "erro 1", erro: "erro 2", mensagem: "erro 3"),
             function: () => bloc.add(PerfilLoadEvent()),
           );
         }
