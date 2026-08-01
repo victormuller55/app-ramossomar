@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:muller_package/muller_package.dart';
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
+import 'package:app_ramos_candidatura/cache/reference_data_prefetch.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/pages/home_shell.dart';
 import 'package:app_ramos_candidatura/pages/login_page/entrar_event.dart';
@@ -25,6 +26,8 @@ class EntrarBloc extends Bloc<EntrarEvent, EntrarState> {
       }
       showToastSuccess(message: AppStrings.loginEfetuadoComSucesso);
       emit(EntrarSuccessState(usuarioModel: usuarioModel));
+      // HomeShell.sincronizar respeita este agendamento (força + progresso).
+      ReferenceDataPrefetch.agendarDownloadPosLogin();
       open(screen: const HomeShell(), closePrevious: true);
     } catch (e) {
       showAppErrorFromException(e);

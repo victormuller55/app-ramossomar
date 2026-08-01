@@ -27,6 +27,17 @@ class CidadeModel {
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'codigo_ibge': codigoIbge,
+      'nome': nome,
+      'uf': uf,
+      'data_criacao': dataCriacao,
+      'data_atualizacao': dataAtualizacao,
+    };
+  }
+
   String get label {
     final n = nome ?? '';
     final u = uf ?? '';

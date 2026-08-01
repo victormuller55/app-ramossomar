@@ -1,8 +1,10 @@
 ﻿import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/function/service/api_error.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,19 +12,60 @@ import 'package:muller_package/muller_package.dart';
 
 const int _maxRateLimitRetries = 1;
 const int _maxRetryAfterSeconds = 60;
+const int _maxLoggedBodyChars = 4000;
 
-Future<http.Response> _request(Future<http.Response> Function() call) async {
+void _logHttp(String message) {
+  if (!kDebugMode) return;
+  developer.log(message, name: 'HTTP');
+}
+
+String _formatBody(Object? body) {
+  if (body == null) return '(sem body)';
+  final text = body is String ? body : jsonEncode(body);
+  if (text.length <= _maxLoggedBodyChars) return text;
+  return '${text.substring(0, _maxLoggedBodyChars)}... (${text.length} chars)';
+}
+
+String _formatResponseBody(http.Response response, {bool binary = false}) {
+  if (binary) return '(binary ${response.bodyBytes.length} bytes)';
+  final contentType = response.headers['content-type'] ?? '';
+  if (contentType.contains('octet-stream') || contentType.contains('image/')) {
+    return '(binary ${response.bodyBytes.length} bytes)';
+  }
+  return _formatBody(utf8.decode(response.bodyBytes));
+}
+
+Future<http.Response> _request({
+  required String method,
+  required Uri uri,
+  Object? body,
+  bool binaryResponse = false,
+  Duration? timeout,
+  required Future<http.Response> Function() call,
+}) async {
+  Future<http.Response> run() {
+    final future = call();
+    if (timeout == null) return future;
+    return future.timeout(timeout);
+  }
+
   try {
-    var response = await call();
+    var response = await run();
     var retries = 0;
 
     while (response.statusCode == 429 && retries < _maxRateLimitRetries) {
       final retryAfter = int.tryParse(response.headers['retry-after'] ?? '') ?? 1;
       final waitSeconds = retryAfter.clamp(1, _maxRetryAfterSeconds);
       await Future.delayed(Duration(seconds: waitSeconds));
-      response = await call();
+      response = await run();
       retries++;
     }
+
+    final requestBody = body == null ? '' : '\nBody: ${_formatBody(body)}';
+    _logHttp(
+      '$method $uri [${response.statusCode}]$requestBody\n'
+      'Response: ${_formatResponseBody(response, binary: binaryResponse)}',
+    );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
@@ -32,6 +75,8 @@ Future<http.Response> _request(Future<http.Response> Function() call) async {
     );
   } catch (e) {
     if (e is ApiException) rethrow;
+    final requestBody = body == null ? '' : '\nBody: ${_formatBody(body)}';
+    _logHttp('✗ $method $uri$requestBody\nError: $e');
     throw ApiException(AppResponse(statusCode: 0, body: e.toString()));
   }
 }
@@ -50,8 +95,12 @@ Future<AppResponse> postJson({
 }) async {
   final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
+  final encodedBody = jsonEncode(body);
   final response = await _request(
-    () => http.post(uri, headers: headers, body: jsonEncode(body)),
+    method: 'POST',
+    uri: uri,
+    body: encodedBody,
+    call: () => http.post(uri, headers: headers, body: encodedBody),
   );
   return AppResponse(statusCode: response.statusCode, body: utf8.decode(response.bodyBytes));
 }
@@ -63,8 +112,12 @@ Future<AppResponse> putJson({
 }) async {
   final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
+  final encodedBody = jsonEncode(body);
   final response = await _request(
-    () => http.put(uri, headers: headers, body: jsonEncode(body)),
+    method: 'PUT',
+    uri: uri,
+    body: encodedBody,
+    call: () => http.put(uri, headers: headers, body: encodedBody),
   );
   return AppResponse(statusCode: response.statusCode, body: utf8.decode(response.bodyBytes));
 }
@@ -72,10 +125,16 @@ Future<AppResponse> putJson({
 Future<AppResponse> getJson({
   required String endpoint,
   Map<String, String>? parameters,
+  Duration? timeout,
 }) async {
   final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
-  final response = await _request(() => http.get(uri, headers: headers));
+  final response = await _request(
+    method: 'GET',
+    uri: uri,
+    timeout: timeout,
+    call: () => http.get(uri, headers: headers),
+  );
   return AppResponse(
     statusCode: response.statusCode,
     body: utf8.decode(response.bodyBytes),
@@ -88,7 +147,12 @@ Future<Uint8List> getBytes({
 }) async {
   final headers = await getAuthHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
-  final response = await _request(() => http.get(uri, headers: headers));
+  final response = await _request(
+    method: 'GET',
+    uri: uri,
+    binaryResponse: true,
+    call: () => http.get(uri, headers: headers),
+  );
   return response.bodyBytes;
 }
 
@@ -99,8 +163,12 @@ Future<AppResponse> patchJson({
 }) async {
   final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
+  final encodedBody = jsonEncode(body);
   final response = await _request(
-    () => http.patch(uri, headers: headers, body: jsonEncode(body)),
+    method: 'PATCH',
+    uri: uri,
+    body: encodedBody,
+    call: () => http.patch(uri, headers: headers, body: encodedBody),
   );
   return AppResponse(statusCode: response.statusCode, body: utf8.decode(response.bodyBytes));
 }
@@ -111,7 +179,11 @@ Future<void> deleteJson({
 }) async {
   final headers = await _jsonHeaders();
   final uri = Uri.parse(endpoint + _query(parameters));
-  await _request(() => http.delete(uri, headers: headers));
+  await _request(
+    method: 'DELETE',
+    uri: uri,
+    call: () => http.delete(uri, headers: headers),
+  );
 }
 
 Future<AppResponse> postMultipart({
@@ -177,7 +249,15 @@ Future<AppResponse> postMultipartFiles({
     return request.send().then(http.Response.fromStream);
   }
 
-  final response = await _request(send);
+  final response = await _request(
+    method: 'POST',
+    uri: uri,
+    body: {
+      'field': fieldName,
+      'files': files.map((f) => f.name).toList(),
+    },
+    call: send,
+  );
   return AppResponse(
     statusCode: response.statusCode,
     body: utf8.decode(response.bodyBytes),
@@ -221,7 +301,15 @@ Future<AppResponse> _sendMultipart({
     return request.send().then(http.Response.fromStream);
   }
 
-  final response = await _request(send);
+  final response = await _request(
+    method: method,
+    uri: uri,
+    body: {
+      'dados': dados,
+      if (foto != null) 'foto': foto.name,
+    },
+    call: send,
+  );
   return AppResponse(
     statusCode: response.statusCode,
     body: utf8.decode(response.bodyBytes),

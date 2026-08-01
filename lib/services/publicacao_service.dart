@@ -6,14 +6,17 @@ import 'package:app_ramos_candidatura/function/service/http_helper.dart';
 Future<AppResponse> getPublicacoes({
   String? titulo,
   String? idAutor,
+  int pagina = 1,
 }) async {
-  final params = <String, String>{};
+  final params = <String, String>{
+    'pagina': pagina.toString(),
+  };
   if (titulo != null && titulo.isNotEmpty) params['titulo'] = titulo;
   if (idAutor != null && idAutor.isNotEmpty) params['id_autor'] = idAutor;
 
   return getJson(
     endpoint: AppEndpoints.endpointPublicacoes,
-    parameters: params.isEmpty ? null : params,
+    parameters: params,
   );
 }
 

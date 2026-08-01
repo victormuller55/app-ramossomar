@@ -19,6 +19,18 @@ Future<List<CidadeModel>> listarCidades({String? nome, String? uf}) async {
       .toList();
 }
 
+/// Carga completa sem paginação — ideal para cache offline.
+Future<List<CidadeModel>> listarTodasCidades() async {
+  final response = await getJson(
+    endpoint: AppEndpoints.endpointCidadesTodos,
+    timeout: const Duration(seconds: 120),
+  );
+  final list = jsonDecode(response.body) as List;
+  return list
+      .map((item) => CidadeModel.fromMap(Map<String, dynamic>.from(item as Map)))
+      .toList();
+}
+
 Future<CidadeModel> buscarCidadePorId(String id) async {
   final response = await getJson(
     endpoint: AppEndpoints.endpointCidadesPorId,

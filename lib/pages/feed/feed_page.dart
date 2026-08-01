@@ -28,19 +28,33 @@ class FeedPage extends StatefulWidget {
 
 class _FeedPageState extends State<FeedPage> {
   final FeedBloc bloc = FeedBloc();
+  final ScrollController _scrollController = ScrollController();
   final List<PublicacaoModel> _publicacoes = <PublicacaoModel>[];
   final Set<String> _expandedIds = <String>{};
 
   bool _isAdmin = false;
   String? _idUsuarioLogado;
+  bool _temProximaPagina = false;
+  bool _loadingMore = false;
+  bool _offline = false;
 
   static const int _conteudoLimite = 160;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _carregarSessao();
     bloc.add(FeedLoadEvent());
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_offline || !_temProximaPagina || _loadingMore) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 320) {
+      bloc.add(FeedLoadMoreEvent());
+    }
   }
 
   Future<void> _carregarSessao() async {
@@ -55,7 +69,9 @@ class _FeedPageState extends State<FeedPage> {
 
   Future<void> _refresh() async {
     bloc.add(FeedLoadEvent(forceRefresh: true));
-    await bloc.stream.firstWhere((s) => s is! FeedLoadingState);
+    await bloc.stream.firstWhere(
+      (s) => s is FeedSuccessState || s is FeedErrorState,
+    );
   }
 
   Future<void> _abrirCadastro({PublicacaoModel? publicacao}) async {
@@ -95,9 +111,30 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   void _aplicarSucesso(FeedSuccessState state) {
-    _publicacoes
-      ..clear()
-      ..addAll(state.publicacoes);
+    setState(() {
+      _temProximaPagina = state.temProximaPagina;
+      _loadingMore = state.loadingMore;
+      _offline = state.offline;
+      _publicacoes
+        ..clear()
+        ..addAll(state.publicacoes);
+    });
+  }
+
+  Widget _linhaOffline() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFCA8A04),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: appText(
+          'Sem conexão · mostrando publicações salvas',
+          color: AppColors.white,
+          bold: true,
+          fontSize: 12,
+        ),
+      ),
+    );
   }
 
   void _onStateChanged(FeedState state) {
@@ -409,27 +446,48 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Widget _emptyState() {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
-      children: [
-        emptyMessage(
-          title: 'Nenhuma publicação ainda',
-          subtitle: widget.showAddFab
-              ? 'Toque no + para criar a primeira publicação.'
-              : 'Quando houver novidades da campanha, elas aparecerão aqui.',
-          icon: Icons.dynamic_feed_rounded,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: emptyMessage(
+                title: _offline
+                    ? 'Nenhuma publicação salva offline'
+                    : 'Nenhuma publicação ainda',
+                subtitle: _offline
+                    ? 'Conecte-se à internet e atualize o feed para salvar as últimas publicações.'
+                    : (widget.showAddFab
+                        ? 'Toque no + para criar a primeira publicação.'
+                        : 'Quando houver novidades da campanha, elas aparecerão aqui.'),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _loadingMoreFooter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(child: appLoadingRamos(size: 22)),
     );
   }
 
   Widget _list() {
+    final extra = _loadingMore ? 1 : 0;
     return ListView.builder(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 5, bottom: 120),
-      itemCount: _publicacoes.length,
-      itemBuilder: (context, index) => _postCard(_publicacoes[index]),
+      itemCount: _publicacoes.length + extra,
+      itemBuilder: (context, index) {
+        if (index >= _publicacoes.length) return _loadingMoreFooter();
+        return _postCard(_publicacoes[index]);
+      },
     );
   }
 
@@ -451,7 +509,8 @@ class _FeedPageState extends State<FeedPage> {
         }
       },
       builder: (context, state) {
-        if (state is FeedLoadingState || state is FeedInitialState) {
+        if ((state is FeedLoadingState || state is FeedInitialState) &&
+            _publicacoes.isEmpty) {
           return appLoadingRamos();
         }
         if (state is FeedErrorState && _publicacoes.isEmpty) {
@@ -469,7 +528,7 @@ class _FeedPageState extends State<FeedPage> {
   Widget build(BuildContext context) {
     return scaffold(
       title: 'Feed',
-      background: const Color(0xFFE8EBE6),
+      background: Colors.grey.shade100,
       appBarColor: RamosColors.primaryDark,
       titleColor: AppColors.white,
       drawerColor: AppColors.white,
@@ -481,12 +540,19 @@ class _FeedPageState extends State<FeedPage> {
               heroTag: 'fab-feed-add',
             )
           : null,
-      body: _bodyBuilder(),
+      body: Column(
+        children: [
+          if (_offline) _linhaOffline(),
+          Expanded(child: _bodyBuilder()),
+        ],
+      ),
     );
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     bloc.close();
     super.dispose();
   }

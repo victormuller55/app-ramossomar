@@ -8,8 +8,11 @@ Future<AppResponse> getApoiadores({
   String? idLider,
   String? intencaoVoto,
   String? cpf,
+  int pagina = 1,
 }) async {
-  final params = <String, String>{};
+  final params = <String, String>{
+    'pagina': pagina.toString(),
+  };
   if (nome != null && nome.isNotEmpty) params['nome'] = nome;
   if (cidade != null && cidade.isNotEmpty) params['cidade'] = cidade;
   if (idLider != null && idLider.isNotEmpty) params['id_lider'] = idLider;
@@ -20,7 +23,7 @@ Future<AppResponse> getApoiadores({
 
   return getJson(
     endpoint: AppEndpoints.endpointApoiadores,
-    parameters: params.isEmpty ? null : params,
+    parameters: params,
   );
 }
 

@@ -36,6 +36,22 @@ Future<List<LocalVotacaoModel>> listarLocaisVotacao({
       .toList();
 }
 
+/// Carga completa sem paginação — ideal para cache offline.
+Future<List<LocalVotacaoModel>> listarTodosLocaisVotacao() async {
+  final response = await getJson(
+    endpoint: AppEndpoints.endpointLocaisVotacaoTodos,
+    timeout: const Duration(seconds: 120),
+  );
+  final list = jsonDecode(response.body) as List;
+  return list
+      .map(
+        (item) => LocalVotacaoModel.fromMap(
+          Map<String, dynamic>.from(item as Map),
+        ),
+      )
+      .toList();
+}
+
 Future<LocalVotacaoModel> buscarLocalVotacaoPorId(String id) async {
   final response = await getJson(
     endpoint: AppEndpoints.endpointLocaisVotacaoPorId,

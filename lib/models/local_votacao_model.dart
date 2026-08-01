@@ -72,6 +72,27 @@ class LocalVotacaoModel {
     return '$n · Zona $z';
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'codigo_tse': codigoTse,
+      'nome': nome,
+      'endereco': endereco,
+      'bairro': bairro,
+      'cep': cep,
+      'zona_eleitoral': zonaEleitoral,
+      'latitude': latitude,
+      'longitude': longitude,
+      'ativo': ativo,
+      'id_cidade': idCidade,
+      'nome_cidade': nomeCidade,
+      'codigo_ibge': codigoIbge,
+      'uf': uf,
+      'data_criacao': dataCriacao,
+      'data_atualizacao': dataAtualizacao,
+    };
+  }
+
   Map<String, dynamic> toJsonCadastro() {
     return {
       'codigo_tse': codigoTse ?? '',

@@ -15,16 +15,18 @@ class PageDataCache {
   static const _prefix = 'page_cache_';
   static const _tsSuffix = '_ts';
 
-  static Future<List<Map<String, dynamic>>?> getJsonList(String key) async {
+  static Future<List<Map<String, dynamic>>?> getJsonList(
+    String key, {
+    bool allowStale = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getInt('$_prefix$key$_tsSuffix');
-    if (timestamp == null || _isExpired(timestamp)) {
-      await invalidate(key);
-      return null;
-    }
-
     final raw = prefs.getString('$_prefix$key');
     if (raw == null || raw.isEmpty) return null;
+
+    if (timestamp != null && _isExpired(timestamp) && !allowStale) {
+      return null;
+    }
 
     try {
       final decoded = jsonDecode(raw) as List;
@@ -36,6 +38,50 @@ class PageDataCache {
   }
 
   static Future<void> setJsonList(String key, List<Map<String, dynamic>> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_prefix$key', jsonEncode(data));
+    await prefs.setInt('$_prefix$key$_tsSuffix', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// [allowStale]: retorna dados mesmo com TTL vencido (uso offline).
+  /// Não apaga o cache ao expirar — só deixa de ser usado como “fresco”.
+  static Future<Map<String, dynamic>?> getJsonMap(
+    String key, {
+    bool allowStale = false,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt('$_prefix$key$_tsSuffix');
+    final raw = prefs.getString('$_prefix$key');
+    if (raw == null || raw.isEmpty) return null;
+
+    if (timestamp != null && _isExpired(timestamp) && !allowStale) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      // Compatível com cache antigo em lista pura.
+      if (decoded is List) {
+        return {
+          'itens': decoded,
+          'num_itens': decoded.length,
+          'max_itens': decoded.length,
+          'num_pagina': 1,
+          'max_paginas': decoded.isEmpty ? 0 : 1,
+        };
+      }
+      await invalidate(key);
+      return null;
+    } catch (_) {
+      await invalidate(key);
+      return null;
+    }
+  }
+
+  static Future<void> setJsonMap(String key, Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('$_prefix$key', jsonEncode(data));
     await prefs.setInt('$_prefix$key$_tsSuffix', DateTime.now().millisecondsSinceEpoch);

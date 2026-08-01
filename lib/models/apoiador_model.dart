@@ -19,6 +19,11 @@ class ApoiadorModel {
   String? dataCriacao;
   String? dataAtualizacao;
 
+  /// Id local da fila offline — nunca enviado à API.
+  String? localId;
+
+  bool get pendenteEnvio => localId != null && localId!.isNotEmpty;
+
   ApoiadorModel({
     this.id,
     this.idLider,
@@ -39,6 +44,7 @@ class ApoiadorModel {
     this.observacoes,
     this.dataCriacao,
     this.dataAtualizacao,
+    this.localId,
   });
 
   factory ApoiadorModel.empty() {
@@ -62,6 +68,7 @@ class ApoiadorModel {
       observacoes: '',
       dataCriacao: null,
       dataAtualizacao: null,
+      localId: null,
     );
   }
 
@@ -98,6 +105,7 @@ class ApoiadorModel {
     observacoes = json['observacoes']?.toString();
     dataCriacao = (json['data_criacao'] ?? json['dataCriacao'])?.toString();
     dataAtualizacao = (json['data_atualizacao'] ?? json['dataAtualizacao'])?.toString();
+    localId = json['localId']?.toString();
   }
 
   Map<String, dynamic> toMap() {
@@ -121,27 +129,35 @@ class ApoiadorModel {
       'observacoes': observacoes,
       'data_criacao': dataCriacao,
       'data_atualizacao': dataAtualizacao,
+      if (localId != null) 'localId': localId,
     };
   }
 
   Map<String, dynamic> toJsonCadastro() {
     final cpfDigits = (cpf ?? '').replaceAll(RegExp(r'\D'), '');
+    final telefoneDigits = (telefone ?? '').replaceAll(RegExp(r'\D'), '');
+    final whatsappDigits = (whatsapp ?? '').replaceAll(RegExp(r'\D'), '');
+    final cepDigits = (cep ?? '').replaceAll(RegExp(r'\D'), '');
+
     return {
       'id_lider': idLider,
       'nome': nome ?? '',
-      if (cpfDigits.isNotEmpty) 'cpf': cpfDigits,
-      if (dataNascimento != null && dataNascimento!.isNotEmpty) 'data_nascimento': dataNascimento,
-      if (telefone != null && telefone!.trim().isNotEmpty)'telefone': telefone!.replaceAll(RegExp(r'\D'), ''),
-      if (whatsapp != null && whatsapp!.trim().isNotEmpty)'whatsapp': whatsapp!.replaceAll(RegExp(r'\D'), ''),
-      if (cep != null && cep!.trim().isNotEmpty) 'cep': cep!.replaceAll(RegExp(r'\D'), ''),
-      if (endereco != null && endereco!.trim().isNotEmpty) 'endereco': endereco,
-      if (numero != null && numero!.trim().isNotEmpty) 'numero': numero,
-      if (complemento != null && complemento!.trim().isNotEmpty) 'complemento': complemento,
-      if (bairro != null && bairro!.trim().isNotEmpty) 'bairro': bairro,
+      'cpf': cpfDigits.isEmpty ? null : cpfDigits,
+      'data_nascimento':
+          (dataNascimento != null && dataNascimento!.isNotEmpty) ? dataNascimento : null,
+      'telefone': telefoneDigits.isEmpty ? null : telefoneDigits,
+      'whatsapp': whatsappDigits.isEmpty ? null : whatsappDigits,
+      'cep': cepDigits.isEmpty ? null : cepDigits,
+      'endereco': (endereco != null && endereco!.trim().isNotEmpty) ? endereco : null,
+      'numero': (numero != null && numero!.trim().isNotEmpty) ? numero : null,
+      'complemento':
+          (complemento != null && complemento!.trim().isNotEmpty) ? complemento : null,
+      'bairro': (bairro != null && bairro!.trim().isNotEmpty) ? bairro : null,
       'cidade': cidade ?? '',
       'local_votacao': localVotacao ?? '',
       'intencao_voto': intencaoVoto,
-      if (observacoes != null && observacoes!.trim().isNotEmpty) 'observacoes': observacoes,
+      'observacoes':
+          (observacoes != null && observacoes!.trim().isNotEmpty) ? observacoes : null,
     };
   }
 

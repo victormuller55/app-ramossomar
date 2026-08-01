@@ -1,4 +1,6 @@
-﻿import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
+﻿import 'dart:async';
+
+import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
@@ -25,11 +27,16 @@ class LideresPage extends StatefulWidget {
 
 class _LideresPageState extends State<LideresPage> {
   final LideresBloc bloc = LideresBloc();
+  final ScrollController _scrollController = ScrollController();
   final List<UsuarioModel> _allLideres = <UsuarioModel>[];
   final ValueNotifier<List<UsuarioModel>> _lideresNotifier = ValueNotifier<List<UsuarioModel>>([]);
 
   late final AppFormField _formSearch;
+  Timer? _buscaDebounce;
   bool? _filtroAtivo;
+  bool _temProximaPagina = false;
+  bool _loadingMore = false;
+  int _maxItens = 0;
 
   bool get _temFiltros => _filtroAtivo != null;
 
@@ -37,7 +44,27 @@ class _LideresPageState extends State<LideresPage> {
   void initState() {
     super.initState();
     _criarCampoBusca();
-    bloc.add(LideresLoadEvent());
+    _scrollController.addListener(_onScroll);
+    _recarregar();
+  }
+
+  void _recarregar({bool forceRefresh = false}) {
+    bloc.add(
+      LideresLoadEvent(
+        forceRefresh: forceRefresh,
+        nome: _formSearch.value.trim().isEmpty ? null : _formSearch.value.trim(),
+        ativo: _filtroAtivo,
+      ),
+    );
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (!_temProximaPagina || _loadingMore) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 240) {
+      bloc.add(LideresLoadMoreEvent());
+    }
   }
 
   void _criarCampoBusca() {
@@ -64,31 +91,17 @@ class _LideresPageState extends State<LideresPage> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  List<UsuarioModel> _filtrarLideres(List<UsuarioModel> items, String query) {
-    final normalized = query.trim().toLowerCase();
-
-    return items.where((u) {
-      if (_filtroAtivo != null && (u.ativo ?? true) != _filtroAtivo) {
-        return false;
-      }
-      if (normalized.isEmpty) return true;
-
-      final nome = (u.nome ?? '').toLowerCase();
-      final email = (u.email ?? '').toLowerCase();
-      final telefone = (u.telefone ?? '').toLowerCase();
-      return nome.contains(normalized) ||
-          email.contains(normalized) ||
-          telefone.contains(normalized);
-    }).toList();
-  }
-
   void _buscar(String value) {
-    _lideresNotifier.value = _filtrarLideres(_allLideres, value);
+    _buscaDebounce?.cancel();
+    _buscaDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _recarregar(forceRefresh: true);
+    });
   }
 
   void _aplicarFiltros() {
-    _buscar(_formSearch.value);
     setState(() {});
+    _recarregar(forceRefresh: true);
   }
 
   String _labelStatus(bool? value) {
@@ -202,15 +215,22 @@ class _LideresPageState extends State<LideresPage> {
   }
 
   void _aplicarSucesso(LideresSuccessState state) {
-    _allLideres
-      ..clear()
-      ..addAll(state.lideres);
-    _buscar(_formSearch.value);
+    setState(() {
+      _temProximaPagina = state.temProximaPagina;
+      _loadingMore = state.loadingMore;
+      _maxItens = state.maxItens;
+      _allLideres
+        ..clear()
+        ..addAll(state.lideres);
+    });
+    _lideresNotifier.value = List.from(_allLideres);
   }
 
   Future<void> _atualizarLista() async {
-    bloc.add(LideresLoadEvent(forceRefresh: true));
-    await bloc.stream.firstWhere((s) => s is! LideresLoadingState);
+    _recarregar(forceRefresh: true);
+    await bloc.stream.firstWhere(
+      (s) => s is LideresSuccessState || s is LideresErrorState,
+    );
   }
 
   Future<void> _editarLider(UsuarioModel lider) async {
@@ -218,7 +238,7 @@ class _LideresPageState extends State<LideresPage> {
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => CadastroLiderPage(lider: lider)));
     if (result == true && mounted) {
-      bloc.add(LideresLoadEvent(forceRefresh: true));
+      _recarregar(forceRefresh: true);
     }
   }
 
@@ -240,7 +260,7 @@ class _LideresPageState extends State<LideresPage> {
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const CadastroLiderPage()));
     if (result == true && mounted) {
-      bloc.add(LideresLoadEvent(forceRefresh: true));
+      _recarregar(forceRefresh: true);
     }
   }
 
@@ -325,8 +345,10 @@ class _LideresPageState extends State<LideresPage> {
     final ativo = lider.ativo ?? true;
     final telefone = (lider.telefone ?? '').trim();
     final detalhe = telefone.isNotEmpty ? formataCelular(telefone) : (lider.email ?? 'Sem e-mail');
-    final total = lider.totalApoiadores ?? 0;
-    final labelCadastrados = total == 1 ? '1 cadastrado' : '$total cadastrados';
+    final total = lider.totalApoiadores;
+    final labelCadastrados = total == null
+        ? null
+        : (total == 1 ? '1 cadastrado' : '$total cadastrados');
 
     return appContainer(
       padding: const EdgeInsets.all(14),
@@ -375,10 +397,11 @@ class _LideresPageState extends State<LideresPage> {
                       label: ativo ? 'Ativo' : 'Inativo',
                       color: ativo ? RamosColors.primary : AppColors.grey600,
                     ),
-                    _chip(
-                      label: labelCadastrados,
-                      color: RamosColors.primaryDark,
-                    ),
+                    if (labelCadastrados != null)
+                      _chip(
+                        label: labelCadastrados,
+                        color: RamosColors.primaryDark,
+                      ),
                   ],
                 ),
               ],
@@ -413,19 +436,29 @@ class _LideresPageState extends State<LideresPage> {
           subtitle: _formSearch.value.trim().isEmpty && !_temFiltros
               ? 'Toque no + para cadastrar o primeiro líder.'
               : 'Tente outro termo de busca ou ajuste os filtros.',
-          icon: Icons.groups_2_outlined,
         ),
       ),
     );
   }
 
+  Widget _loadingMoreFooter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(child: appLoadingRamos(size: 22)),
+    );
+  }
+
   Widget _lideresList(List<UsuarioModel> items) {
+    final extra = _loadingMore ? 1 : 0;
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
       sliver: SliverList.separated(
-        itemCount: items.length,
+        itemCount: items.length + extra,
         separatorBuilder: (context, index) => appSizedBox(height: 12),
-        itemBuilder: (context, index) => _liderCard(items[index]),
+        itemBuilder: (context, index) {
+          if (index >= items.length) return _loadingMoreFooter();
+          return _liderCard(items[index]);
+        },
       ),
     );
   }
@@ -443,16 +476,11 @@ class _LideresPageState extends State<LideresPage> {
   Widget _header() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: ValueListenableBuilder<List<UsuarioModel>>(
-        valueListenable: _lideresNotifier,
-        builder: (context, items, child) {
-          return appText(
-            '${items.length} líder${items.length == 1 ? '' : 'es'}',
-            bold: true,
-            color: RamosColors.primaryDark,
-            fontSize: AppFontSizes.small,
-          );
-        },
+      child: appText(
+        '$_maxItens líder${_maxItens == 1 ? '' : 'es'}',
+        bold: true,
+        color: RamosColors.primaryDark,
+        fontSize: AppFontSizes.small,
       ),
     );
   }
@@ -465,8 +493,8 @@ class _LideresPageState extends State<LideresPage> {
         onTap: _abrirFiltros,
         borderRadius: BorderRadius.circular(16),
         child: appContainer(
-          width: 52,
-          height: 52,
+          width: 50,
+          height: 50,
           border: Border.all(
             color: _temFiltros ? RamosColors.primary : AppColors.grey200,
             width: _temFiltros ? 1.5 : 1,
@@ -498,10 +526,15 @@ class _LideresPageState extends State<LideresPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: _formSearch.formulario),
           appSizedBox(width: 8),
-          _botaoFiltro(),
+          // Compensa o padding top interno do AppFormField.
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _botaoFiltro(),
+          ),
         ],
       ),
     );
@@ -512,6 +545,7 @@ class _LideresPageState extends State<LideresPage> {
       color: RamosColors.primary,
       onRefresh: _atualizarLista,
       child: CustomScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _searchField()),
@@ -527,13 +561,14 @@ class _LideresPageState extends State<LideresPage> {
       bloc: bloc,
       listener: (context, state) => _onStateChanged(state),
       builder: (context, state) {
-        if (state is LideresLoadingState || state is LideresInitialState) {
+        if ((state is LideresLoadingState || state is LideresInitialState) &&
+            _allLideres.isEmpty) {
           return appLoadingRamos();
         }
-        if (state is LideresErrorState) {
+        if (state is LideresErrorState && _allLideres.isEmpty) {
           return appError(
             state.errorModel,
-            function: () => bloc.add(LideresLoadEvent(forceRefresh: true)),
+            function: () => _recarregar(forceRefresh: true),
           );
         }
         return _body();
@@ -561,6 +596,9 @@ class _LideresPageState extends State<LideresPage> {
 
   @override
   void dispose() {
+    _buscaDebounce?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _formSearch.controller.dispose();
     _lideresNotifier.dispose();
     bloc.close();

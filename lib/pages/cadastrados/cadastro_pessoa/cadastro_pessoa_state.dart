@@ -6,7 +6,11 @@ class CadastroPessoaInitialState extends CadastroPessoaState {}
 
 class CadastroPessoaLoadingState extends CadastroPessoaState {}
 
-class CadastroPessoaSuccessState extends CadastroPessoaState {}
+class CadastroPessoaSuccessState extends CadastroPessoaState {
+  final bool salvoOffline;
+
+  CadastroPessoaSuccessState({this.salvoOffline = false});
+}
 
 class CadastroPessoaErrorState extends CadastroPessoaState {
   final ErrorModel errorModel;

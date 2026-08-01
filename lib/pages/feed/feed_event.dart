@@ -5,6 +5,8 @@ class FeedLoadEvent extends FeedEvent {
   FeedLoadEvent({this.forceRefresh = false});
 }
 
+class FeedLoadMoreEvent extends FeedEvent {}
+
 class FeedDeleteEvent extends FeedEvent {
   final String id;
   FeedDeleteEvent({required this.id});

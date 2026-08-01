@@ -1,7 +1,5 @@
 ﻿import 'dart:convert';
 
-import 'package:app_ramos_candidatura/cache/cache_keys.dart';
-import 'package:app_ramos_candidatura/cache/page_data_cache.dart';
 import 'package:app_ramos_candidatura/models/publicacao_model.dart';
 import 'package:app_ramos_candidatura/services/publicacao_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,7 +25,7 @@ Future<PublicacaoModel> criarPublicacao(
     }
   }
 
-  await PageDataCache.invalidate(CacheKeys.publicacoes);
+  // Cache offline regravado no FeedLoadEvent(forceRefresh) da listagem.
   return criada;
 }
 
@@ -52,6 +50,6 @@ Future<PublicacaoModel> alterarPublicacao(
     }
   }
 
-  await PageDataCache.invalidate(CacheKeys.publicacoes);
+  // Cache offline regravado no FeedLoadEvent(forceRefresh) da listagem.
   return atualizada;
 }

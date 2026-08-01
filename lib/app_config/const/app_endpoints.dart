@@ -1,6 +1,10 @@
 /// Base da API de produção.
 const String server = 'https://ramossomar.api.convertix.net.br';
-// const String server = 'http://localhost:7000';
+
+/// Emulador Android → máquina host: use `10.0.2.2` (não use 192.168.x nem localhost).
+/// Celular físico na mesma rede → use o IP do notebook (ex.: 192.168.0.105).
+
+// const String server = 'http://10.0.2.2:7000';
 
 
 String get api => '$server/api/v1/ramossomar';
@@ -47,11 +51,13 @@ class AppEndpoints {
 
   // Cidades
   static String endpointCidades = '$api/cidades';
+  static String endpointCidadesTodos = '$api/cidades/todos';
   static String endpointCidadesPorId = '$api/cidades/por-id';
   static String endpointCidadesPorCodigoIbge = '$api/cidades/por-codigo-ibge';
 
   // Locais de votação
   static String endpointLocaisVotacao = '$api/locais-votacao';
+  static String endpointLocaisVotacaoTodos = '$api/locais-votacao/todos';
   static String endpointLocaisVotacaoPorId = '$api/locais-votacao/por-id';
   static String endpointLocaisVotacaoNovo = '$api/locais-votacao/novo';
   static String endpointLocaisVotacaoAlterar = '$api/locais-votacao/alterar-dados';

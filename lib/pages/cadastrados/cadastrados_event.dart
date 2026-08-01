@@ -2,10 +2,16 @@ abstract class CadastradosEvent {}
 
 class CadastradosLoadEvent extends CadastradosEvent {
   final bool forceRefresh;
-  CadastradosLoadEvent({this.forceRefresh = false});
+  final String? nome;
+
+  CadastradosLoadEvent({this.forceRefresh = false, this.nome});
 }
 
+class CadastradosLoadMoreEvent extends CadastradosEvent {}
+
 class CadastradosDeleteEvent extends CadastradosEvent {
-  final String id;
-  CadastradosDeleteEvent({required this.id});
+  final String? id;
+  final String? localId;
+
+  CadastradosDeleteEvent({this.id, this.localId});
 }

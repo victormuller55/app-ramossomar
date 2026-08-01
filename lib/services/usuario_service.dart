@@ -8,8 +8,11 @@ Future<AppResponse> getUsuarios({
   String? email,
   String? perfil,
   bool? ativo,
+  int pagina = 1,
 }) async {
-  final params = <String, String>{};
+  final params = <String, String>{
+    'pagina': pagina.toString(),
+  };
   if (nome != null && nome.isNotEmpty) params['nome'] = nome;
   if (email != null && email.isNotEmpty) params['email'] = email;
   if (perfil != null && perfil.isNotEmpty) params['perfil'] = perfil;
@@ -17,7 +20,7 @@ Future<AppResponse> getUsuarios({
 
   return getJson(
     endpoint: AppEndpoints.endpointUsuarios,
-    parameters: params.isEmpty ? null : params,
+    parameters: params,
   );
 }
 

@@ -9,10 +9,12 @@ import 'package:app_ramos_candidatura/function/haptic.dart';
 import 'package:app_ramos_candidatura/function/service/session_expired.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/function/validators.dart';
+import 'package:app_ramos_candidatura/cache/reference_data_cache.dart';
 import 'package:app_ramos_candidatura/function/via_cep.dart';
 import 'package:app_ramos_candidatura/models/apoiador_model.dart';
 import 'package:app_ramos_candidatura/models/cidade_model.dart';
 import 'package:app_ramos_candidatura/models/local_votacao_model.dart';
+import 'package:app_ramos_candidatura/offline/connectivity_helper.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_bloc.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_event.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastro_pessoa/cadastro_pessoa_state.dart';
@@ -130,7 +132,6 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       icon: Icons.location_on_rounded,
       showKeyboard: false,
       onTap: _abrirSeletorCidade,
-      validator: validateCidade,
       suffixIcon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: AppColors.grey600,
@@ -141,7 +142,6 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       icon: Icons.how_to_vote_rounded,
       showKeyboard: false,
       onTap: _abrirSeletorLocal,
-      validator: validateLocalVotacao,
       suffixIcon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: AppColors.grey600,
@@ -230,14 +230,13 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
 
   Future<void> _carregarCidades() async {
     setState(() => _carregandoCidades = true);
-    try {
-      final cidades = await listarCidades();
-      if (!mounted) return;
+
+    final cached = await ReferenceDataCache.getCidades(allowStale: true) ?? [];
+    if (cached.isNotEmpty && mounted) {
       setState(() {
-        _cidades = cidades;
+        _cidades = cached;
         _carregandoCidades = false;
       });
-
       final nomeCidade = widget.apoiador?.cidade;
       if (nomeCidade != null && nomeCidade.isNotEmpty) {
         await _selecionarCidadePorNome(
@@ -245,8 +244,44 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
           nomeLocal: widget.apoiador?.localVotacao,
         );
       }
+    }
+
+    if (!await temConexao()) {
+      if (!mounted) return;
+      if (_cidades.isEmpty) {
+        setState(() => _carregandoCidades = false);
+        showToastWarning(
+          message:
+              'Sem internet. Abra o app online uma vez para baixar as cidades.',
+        );
+      }
+      return;
+    }
+
+    try {
+      final cidades = await listarCidades();
+      await ReferenceDataCache.setCidades(cidades);
+      if (!mounted) return;
+      setState(() {
+        _cidades = cidades;
+        _carregandoCidades = false;
+      });
+
+      if (cached.isEmpty) {
+        final nomeCidade = widget.apoiador?.cidade;
+        if (nomeCidade != null && nomeCidade.isNotEmpty) {
+          await _selecionarCidadePorNome(
+            nomeCidade,
+            nomeLocal: widget.apoiador?.localVotacao,
+          );
+        }
+      }
     } catch (e) {
       if (!mounted) return;
+      if (_cidades.isNotEmpty) {
+        setState(() => _carregandoCidades = false);
+        return;
+      }
       setState(() => _carregandoCidades = false);
       if (await tratarSessaoExpirada(e)) return;
       showToastWarning(message: 'Não foi possível carregar as cidades');
@@ -272,23 +307,55 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       _localVotacaoForm.controller.clear();
     });
 
-    try {
-      final locais = await listarLocaisVotacao(idCidade: idCidade, ativo: true);
-      if (!mounted) return;
-
+    void aplicarLocais(List<LocalVotacaoModel> locais) {
       LocalVotacaoModel? selecionado;
       if (nomeLocalParaSelecionar != null && nomeLocalParaSelecionar.isNotEmpty) {
         selecionado = _encontrarLocal(locais, nomeLocalParaSelecionar);
       }
-
       setState(() {
         _locaisVotacao = locais;
         _localSelecionado = selecionado;
         _carregandoLocais = false;
         _localVotacaoForm.controller.text = selecionado?.nome ?? '';
       });
+    }
+
+    // Sempre tenta a lista baixada no aparelho primeiro.
+    final cached = await ReferenceDataCache.getLocaisDaCidade(
+      idCidade,
+      allowStale: true,
+    );
+    if (cached.isNotEmpty && mounted) {
+      aplicarLocais(cached);
+    }
+
+    if (!await temConexao()) {
+      if (!mounted) return;
+      if (_locaisVotacao.isEmpty) {
+        setState(() => _carregandoLocais = false);
+        showToastWarning(
+          message:
+              'Nenhum local de votação salvo para esta cidade. Abra o app online para baixar.',
+        );
+      }
+      return;
+    }
+
+    try {
+      final locais = await listarLocaisVotacao(idCidade: idCidade, ativo: true);
+      await ReferenceDataCache.setLocaisDaCidade(idCidade, locais);
+      if (!mounted) return;
+      if (locais.isNotEmpty) {
+        aplicarLocais(locais);
+      } else if (_locaisVotacao.isEmpty) {
+        setState(() => _carregandoLocais = false);
+      }
     } catch (e) {
       if (!mounted) return;
+      if (_locaisVotacao.isNotEmpty) {
+        setState(() => _carregandoLocais = false);
+        return;
+      }
       setState(() => _carregandoLocais = false);
       if (await tratarSessaoExpirada(e)) return;
       showToastWarning(message: 'Não foi possível carregar os locais de votação');
@@ -349,6 +416,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       _cidadeForm.controller.text = cidade.nome ?? '';
       _localVotacaoForm.controller.clear();
     });
+    _formKey.currentState?.validate();
     await _carregarLocais(nomeLocalParaSelecionar: nomeLocalParaSelecionar);
   }
 
@@ -357,6 +425,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
       _localSelecionado = local;
       _localVotacaoForm.controller.text = local.nome ?? '';
     });
+    _formKey.currentState?.validate();
   }
 
   Future<void> _abrirSeletorCidade() async {
@@ -521,6 +590,7 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
     final digits = value.replaceAll(RegExp(r'\D'), '');
     if (digits.length != 8) return;
     if (_buscandoCep || _ultimoCepBuscado == digits) return;
+    if (!await temConexao()) return;
 
     setState(() => _buscandoCep = true);
     try {
@@ -604,11 +674,17 @@ class _CadastroPessoaPageState extends State<CadastroPessoaPage> {
 
   void _onStateChanged(CadastroPessoaState state) {
     if (state is CadastroPessoaSuccessState) {
-      showToastSuccess(
-        message: _isEdit
-            ? 'Cadastro atualizado com sucesso'
-            : 'Pessoa cadastrada com sucesso',
-      );
+      if (state.salvoOffline) {
+        showToastSuccess(
+          message: 'Salvo offline. Será enviado quando houver internet.',
+        );
+      } else {
+        showToastSuccess(
+          message: _isEdit
+              ? 'Cadastro atualizado com sucesso'
+              : 'Pessoa cadastrada com sucesso',
+        );
+      }
       Navigator.of(context).pop(true);
       return;
     }

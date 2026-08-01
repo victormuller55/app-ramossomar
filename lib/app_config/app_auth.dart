@@ -7,6 +7,8 @@ import 'package:app_ramos_candidatura/app_config/app_platform.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_api_config.dart';
 import 'package:app_ramos_candidatura/cache/page_data_cache.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
+import 'package:app_ramos_candidatura/offline/offline_apoiador_queue.dart';
+import 'package:app_ramos_candidatura/offline/offline_sync_service.dart';
 
 const String _keyToken = 'auth_token';
 const String _keyUsuario = 'usuario_logado';
@@ -55,6 +57,9 @@ Future<void> _clearSessao(SharedPreferences prefs) async {
   await prefs.remove(_keyUsuario);
   await prefs.remove(_keyAuthDay);
   await PageDataCache.clearAll();
+  await OfflineApoiadorQueue.limpar();
+  await OfflineSyncService.instance.stop();
+  OfflineSyncService.instance.pendentesCount.value = 0;
 }
 
 Future<bool> _ensureSessaoAtiva() async {

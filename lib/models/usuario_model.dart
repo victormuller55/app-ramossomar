@@ -103,6 +103,7 @@ class UsuarioModel {
       'token': token,
       'refresh_token': refreshToken,
       'expira_em': expiraEm,
+      if (totalApoiadores != null) 'total_apoiadores': totalApoiadores,
     };
   }
 }

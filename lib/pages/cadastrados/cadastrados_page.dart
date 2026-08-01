@@ -1,10 +1,14 @@
-﻿import 'package:app_ramos_candidatura/app_config/app_auth.dart';
+﻿import 'dart:async';
+
+import 'package:app_ramos_candidatura/app_config/app_auth.dart';
 import 'package:app_ramos_candidatura/app_config/app_enums.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_consts.dart';
 import 'package:app_ramos_candidatura/app_config/const/app_endpoints.dart';
 import 'package:app_ramos_candidatura/function/show_snackbar.dart';
 import 'package:app_ramos_candidatura/models/apoiador_model.dart';
 import 'package:app_ramos_candidatura/models/usuario_model.dart';
+import 'package:app_ramos_candidatura/offline/connectivity_helper.dart';
+import 'package:app_ramos_candidatura/offline/offline_sync_service.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastrados_bloc.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastrados_event.dart';
 import 'package:app_ramos_candidatura/pages/cadastrados/cadastrados_state.dart';
@@ -15,6 +19,7 @@ import 'package:app_ramos_candidatura/widgets/app_confirm_dialog.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 import 'package:app_ramos_candidatura/widgets/empty.dart';
 import 'package:app_ramos_candidatura/widgets/ramos_add_fab.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:muller_package/muller_package.dart' hide AppRadius, AppFontSizes, AppSpacing;
@@ -29,20 +34,67 @@ class CadastradosPage extends StatefulWidget {
 }
 
 class _CadastradosPageState extends State<CadastradosPage> {
-
   final CadastradosBloc bloc = CadastradosBloc();
+  final ScrollController _scrollController = ScrollController();
   final List<ApoiadorModel> _allApoiadores = <ApoiadorModel>[];
-  final ValueNotifier<List<ApoiadorModel>> _apoiadoresNotifier = ValueNotifier<List<ApoiadorModel>>([]);
+  final ValueNotifier<List<ApoiadorModel>> _apoiadoresNotifier = ValueNotifier<List<ApoiadorModel>>(
+    [],
+  );
 
   late final AppFormField _formSearch;
+  Timer? _buscaDebounce;
 
   UsuarioModel? _usuario;
+  bool _offline = false;
+  bool _semConexao = false;
+  bool _temProximaPagina = false;
+  bool _loadingMore = false;
+  int _maxItens = 0;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     _criarCampoBusca();
-    bloc.add(CadastradosLoadEvent());
+    _scrollController.addListener(_onScroll);
+    OfflineSyncService.instance.syncVersion.addListener(_onSyncCompleted);
+    _iniciarMonitorConexao();
+    _recarregar();
+  }
+
+  void _recarregar({bool forceRefresh = false}) {
+    bloc.add(
+      CadastradosLoadEvent(
+        forceRefresh: forceRefresh,
+        nome: _formSearch.value.trim().isEmpty ? null : _formSearch.value.trim(),
+      ),
+    );
+  }
+
+  void _onSyncCompleted() {
+    if (!mounted) return;
+    _recarregar(forceRefresh: true);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (!_temProximaPagina || _loadingMore || _offline) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 240) {
+      bloc.add(CadastradosLoadMoreEvent());
+    }
+  }
+
+  Future<void> _iniciarMonitorConexao() async {
+    final online = await temConexao();
+    if (mounted) setState(() => _semConexao = !online);
+
+    _connectivitySub = onConnectivityChanged().listen((results) {
+      final onlineAgora = connectivityResultsOnline(results);
+      if (!mounted) return;
+      setState(() => _semConexao = !onlineAgora);
+      _recarregar(forceRefresh: onlineAgora);
+    });
   }
 
   void _criarCampoBusca() {
@@ -125,15 +177,36 @@ class _CadastradosPageState extends State<CadastradosPage> {
   }
 
   void _buscar(String value) {
-    _apoiadoresNotifier.value = _filtrarApoiadores(_allApoiadores, value);
+    _buscaDebounce?.cancel();
+
+    if (_offline) {
+      _apoiadoresNotifier.value = _filtrarApoiadores(_allApoiadores, value);
+      return;
+    }
+
+    _buscaDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _recarregar(forceRefresh: true);
+    });
   }
 
   void _aplicarSucesso(CadastradosSuccessState state) {
-    _usuario = state.usuario;
-    _allApoiadores
-      ..clear()
-      ..addAll(state.apoiadores);
-    _buscar(_formSearch.value);
+    setState(() {
+      _usuario = state.usuario;
+      _offline = state.offline;
+      _temProximaPagina = state.temProximaPagina;
+      _loadingMore = state.loadingMore;
+      _maxItens = state.maxItens;
+      _allApoiadores
+        ..clear()
+        ..addAll(state.apoiadores);
+    });
+
+    if (_offline) {
+      _apoiadoresNotifier.value = _filtrarApoiadores(_allApoiadores, _formSearch.value);
+    } else {
+      _apoiadoresNotifier.value = List.from(_allApoiadores);
+    }
   }
 
   Future<void> _logout() async {
@@ -151,16 +224,22 @@ class _CadastradosPageState extends State<CadastradosPage> {
   }
 
   Future<void> _atualizarLista() async {
-    bloc.add(CadastradosLoadEvent(forceRefresh: true));
-    await bloc.stream.firstWhere((s) => s is! CadastradosLoadingState);
+    _recarregar(forceRefresh: true);
+    await bloc.stream.firstWhere(
+      (s) => s is CadastradosSuccessState || s is CadastradosErrorState,
+    );
   }
 
   Future<void> _editarApoiador(ApoiadorModel apoiador) async {
+    if (apoiador.pendenteEnvio) {
+      showToastWarning(message: 'Cadastros offline não podem ser editados. Aguarde o envio.');
+      return;
+    }
     final result = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => CadastroPessoaPage(apoiador: apoiador)));
     if (result == true && mounted) {
-      bloc.add(CadastradosLoadEvent(forceRefresh: true));
+      _recarregar(forceRefresh: true);
     }
   }
 
@@ -174,7 +253,7 @@ class _CadastradosPageState extends State<CadastradosPage> {
       destructive: true,
     );
     if (confirm != true) return;
-    bloc.add(CadastradosDeleteEvent(id: apoiador.id!));
+    bloc.add(CadastradosDeleteEvent(id: apoiador.id, localId: apoiador.localId));
   }
 
   void _abrirPerfil() {
@@ -186,7 +265,7 @@ class _CadastradosPageState extends State<CadastradosPage> {
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const CadastroPessoaPage()));
     if (result == true && mounted) {
-      bloc.add(CadastradosLoadEvent(forceRefresh: true));
+      _recarregar(forceRefresh: true);
     }
   }
 
@@ -284,7 +363,7 @@ class _CadastradosPageState extends State<CadastradosPage> {
           const Icon(Icons.groups_rounded, color: RamosColors.primary, size: 20),
           appSizedBox(height: 4),
           appText(
-            _allApoiadores.length.toString().padLeft(3, '0'),
+            _maxItens.toString().padLeft(3, '0'),
             bold: true,
             color: RamosColors.primaryDark,
             fontSize: AppFontSizes.verySmall,
@@ -326,56 +405,58 @@ class _CadastradosPageState extends State<CadastradosPage> {
   }
 
   Widget _profileCard() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: appContainer(
-        padding: const EdgeInsets.all(16),
-        backgroundColor: AppColors.white,
-        radius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.grey200),
-        shadow: BoxShadow(
-          color: RamosColors.primary.withValues(alpha: 0.1),
-          blurRadius: 24,
-          offset: const Offset(0, 10),
-        ),
-        child: Row(
-          children: [
-            _profileAvatar(),
-            appSizedBox(width: 14),
-            Expanded(child: _profileInfo()),
-            appSizedBox(width: 8),
-            _profileCount(),
-          ],
-        ),
+    return appContainer(
+      margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.white,
+      radius: BorderRadius.circular(22),
+      child: Row(
+        children: [
+          _profileAvatar(),
+          appSizedBox(width: 14),
+          Expanded(child: _profileInfo()),
+          appSizedBox(width: 8),
+          _profileCount(),
+        ],
       ),
     );
   }
 
   Widget _listHeader() {
     final isAdmin = _usuario?.isAdmin ?? false;
+    final titulo = _offline
+        ? 'Pendentes de envio'
+        : (isAdmin ? 'Todos os cadastrados' : 'Seus cadastrados');
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
       child: Row(
         children: [
-          appText(
-            isAdmin ? 'Todos os cadastrados' : 'Seus cadastrados',
-            bold: true,
-            color: AppColors.grey900,
-            fontSize: AppFontSizes.small,
+          Expanded(
+            child: appText(
+              titulo,
+              bold: true,
+              color: AppColors.grey900,
+              fontSize: AppFontSizes.small,
+            ),
           ),
-          const Spacer(),
-          ValueListenableBuilder<List<ApoiadorModel>>(
-            valueListenable: _apoiadoresNotifier,
-            builder: (context, items, child) {
-              return appText(
-                '${items.length}',
-                color: AppColors.grey600,
-                fontSize: AppFontSizes.verySmall,
-              );
-            },
+          appText(
+            '$_maxItens',
+            color: AppColors.grey600,
+            fontSize: AppFontSizes.verySmall,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _linhaSemConexao() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFCA8A04),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: appText('Sem conexão', color: AppColors.white, bold: true, fontSize: 12),
       ),
     );
   }
@@ -403,6 +484,8 @@ class _CadastradosPageState extends State<CadastradosPage> {
           spacing: 6,
           runSpacing: 4,
           children: [
+            if (apoiador.pendenteEnvio)
+              _chip(label: 'Pendente de envio', color: const Color(0xFFCA8A04)),
             _chip(
               label: _labelIntencaoVoto(apoiador.intencaoVoto),
               color: _corIntencaoVoto(apoiador.intencaoVoto),
@@ -426,13 +509,15 @@ class _CadastradosPageState extends State<CadastradosPage> {
           appSizedBox(width: 12),
           Expanded(child: _apoiadorInfo(apoiador)),
           appSizedBox(width: 8),
-          _actionButton(
-            icon: Icons.edit_rounded,
-            background: RamosColors.secondary.withValues(alpha: 0.35),
-            iconColor: RamosColors.primaryDark,
-            onTap: () => _editarApoiador(apoiador),
-          ),
-          appSizedBox(width: 8),
+          if (!apoiador.pendenteEnvio) ...[
+            _actionButton(
+              icon: Icons.edit_rounded,
+              background: RamosColors.secondary.withValues(alpha: 0.35),
+              iconColor: RamosColors.primaryDark,
+              onTap: () => _editarApoiador(apoiador),
+            ),
+            appSizedBox(width: 8),
+          ],
           _actionButton(
             icon: Icons.delete_outline_rounded,
             background: AppColors.red.withValues(alpha: 0.12),
@@ -447,26 +532,37 @@ class _CadastradosPageState extends State<CadastradosPage> {
   Widget _emptyState() {
     return SliverFillRemaining(
       hasScrollBody: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+      child: Center(
         child: emptyMessage(
-          title: 'Nenhum cadastrado encontrado',
+          title: _offline ? 'Nenhum cadastro offline' : 'Nenhum cadastrado encontrado',
           subtitle: _formSearch.value.trim().isEmpty
-              ? 'Toque no + para cadastrar a primeira pessoa.'
+              ? (_offline
+                    ? 'Toque no + para cadastrar sem internet. Os dados serão enviados depois.'
+                    : 'Toque no + para cadastrar a primeira pessoa.')
               : 'Tente outro termo de busca.',
-          icon: Icons.people_outline_rounded,
         ),
       ),
     );
   }
 
+  Widget _loadingMoreFooter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(child: appLoadingRamos(size: 22)),
+    );
+  }
+
   Widget _apoiadoresList(List<ApoiadorModel> items) {
+    final extra = _loadingMore ? 1 : 0;
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 120),
       sliver: SliverList.separated(
-        itemCount: items.length,
-        separatorBuilder: (context, index) => appSizedBox(height: 12),
-        itemBuilder: (context, index) => _apoiadorCard(items[index]),
+        itemCount: items.length + extra,
+        separatorBuilder: (context, index) => appSizedBox(height: 10),
+        itemBuilder: (context, index) {
+          if (index >= items.length) return _loadingMoreFooter();
+          return _apoiadorCard(items[index]);
+        },
       ),
     );
   }
@@ -482,7 +578,10 @@ class _CadastradosPageState extends State<CadastradosPage> {
   }
 
   Widget _searchField() {
-    return Padding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 8), child: _formSearch.formulario);
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, right: 10),
+      child: _formSearch.formulario,
+    );
   }
 
   Widget _body() {
@@ -490,6 +589,7 @@ class _CadastradosPageState extends State<CadastradosPage> {
       color: RamosColors.primary,
       onRefresh: _atualizarLista,
       child: CustomScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _profileCard()),
@@ -506,13 +606,14 @@ class _CadastradosPageState extends State<CadastradosPage> {
       bloc: bloc,
       listener: (context, state) => _onStateChanged(state),
       builder: (context, state) {
-        if (state is CadastradosLoadingState || state is CadastradosInitialState) {
+        if ((state is CadastradosLoadingState || state is CadastradosInitialState) &&
+            _allApoiadores.isEmpty) {
           return appLoadingRamos();
         }
-        if (state is CadastradosErrorState) {
+        if (state is CadastradosErrorState && _allApoiadores.isEmpty) {
           return appError(
             state.errorModel,
-            function: () => bloc.add(CadastradosLoadEvent(forceRefresh: true)),
+            function: () => _recarregar(forceRefresh: true),
           );
         }
         return _body();
@@ -524,16 +625,13 @@ class _CadastradosPageState extends State<CadastradosPage> {
   Widget build(BuildContext context) {
     return scaffold(
       title: 'Cadastrados',
-      background: AppColors.grey50,
+      background: Colors.grey.shade100,
       appBarColor: RamosColors.primaryDark,
       titleColor: AppColors.white,
       drawerColor: AppColors.white,
       hideBackIcon: true,
       centerTitle: true,
-      floatingActionButton: ramosAddFab(
-        onTap: _adicionarApoiador,
-        heroTag: 'fab-cadastrados-add',
-      ),
+      floatingActionButton: ramosAddFab(onTap: _adicionarApoiador, heroTag: 'fab-cadastrados-add'),
       actions: [
         if (widget.showProfileInHeader)
           IconButton(
@@ -545,12 +643,22 @@ class _CadastradosPageState extends State<CadastradosPage> {
           icon: Icon(Icons.logout_rounded, color: AppColors.white),
         ),
       ],
-      body: _bodyBuilder(),
+      body: Column(
+        children: [
+          if (_semConexao) _linhaSemConexao(),
+          Expanded(child: _bodyBuilder()),
+        ],
+      ),
     );
   }
 
   @override
   void dispose() {
+    _buscaDebounce?.cancel();
+    _connectivitySub?.cancel();
+    OfflineSyncService.instance.syncVersion.removeListener(_onSyncCompleted);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _formSearch.controller.dispose();
     _apoiadoresNotifier.dispose();
     bloc.close();

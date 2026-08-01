@@ -27,6 +27,8 @@ class CadastroPublicacaoPage extends StatefulWidget {
 }
 
 class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
+  static const int _maxImagens = 3;
+
   final CadastroPublicacaoBloc bloc = CadastroPublicacaoBloc();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
@@ -34,11 +36,13 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   late final AppFormField _tituloForm;
   late final AppFormField _conteudoForm;
 
-  XFile? _imagem;
-  String? _imagemExistente;
+  final List<XFile> _imagensNovas = <XFile>[];
+  final List<String> _imagensExistentes = <String>[];
   bool _isEdit = false;
 
-  bool get _temImagem => _imagem != null || (_imagemExistente?.isNotEmpty == true);
+  int get _totalImagens => _imagensNovas.length + _imagensExistentes.length;
+
+  bool get _podeAdicionar => _totalImagens < _maxImagens;
 
   @override
   void initState() {
@@ -67,9 +71,9 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     if (pub == null) return;
     _tituloForm.controller.text = pub.titulo ?? '';
     _conteudoForm.controller.text = pub.conteudo ?? '';
-    if (pub.imagens.isNotEmpty) {
-      _imagemExistente = pub.imagens.first;
-    }
+    _imagensExistentes
+      ..clear()
+      ..addAll(pub.imagens.take(_maxImagens));
   }
 
   Future<XFile?> _recortarImagem(String path) async {
@@ -127,6 +131,8 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
   }
 
   Future<void> _adicionarImagem() async {
+    if (!_podeAdicionar) return;
+
     final selecionada = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 95,
@@ -135,17 +141,22 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
 
     final ajustada = await _recortarImagem(selecionada.path);
     if (ajustada == null || !mounted) return;
+    if (!_podeAdicionar) return;
 
     setState(() {
-      _imagemExistente = null;
-      _imagem = ajustada;
+      _imagensNovas.add(ajustada);
     });
   }
 
-  void _removerImagem() {
+  void _removerImagemNova(int index) {
     setState(() {
-      _imagem = null;
-      _imagemExistente = null;
+      _imagensNovas.removeAt(index);
+    });
+  }
+
+  void _removerImagemExistente(int index) {
+    setState(() {
+      _imagensExistentes.removeAt(index);
     });
   }
 
@@ -167,7 +178,7 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     bloc.add(
       CadastroPublicacaoSaveEvent(
         publicacao: publicacao,
-        imagens: _imagem != null ? <XFile>[_imagem!] : const <XFile>[],
+        imagens: List<XFile>.from(_imagensNovas),
         isEdit: _isEdit,
       ),
     );
@@ -242,98 +253,103 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
-  Widget _botaoRemoverImagem() {
+  Widget _botaoRemoverImagem(VoidCallback onTap) {
     return Positioned(
-      top: 10,
-      right: 10,
+      top: 8,
+      right: 8,
       child: GestureDetector(
-        onTap: _removerImagem,
+        onTap: onTap,
         child: appContainer(
-          width: 34,
-          height: 34,
+          width: 30,
+          height: 30,
           backgroundColor: AppColors.black.withValues(alpha: 0.55),
           radius: BorderRadius.circular(360),
-          child: Icon(Icons.close_rounded, size: 18, color: AppColors.white),
+          child: Icon(Icons.close_rounded, size: 16, color: AppColors.white),
         ),
       ),
     );
   }
 
-  Widget _previewImagemArquivo(XFile file) {
+  Widget _tileImagem({
+    required Widget child,
+    required VoidCallback onRemover,
+  }) {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Image.file(
-              File(file.path),
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
+          borderRadius: BorderRadius.circular(16),
+          child: AspectRatio(aspectRatio: 1, child: child),
         ),
-        _botaoRemoverImagem(),
+        _botaoRemoverImagem(onRemover),
       ],
     );
   }
 
-  Widget _previewImagemExistente(String path) {
+  Widget _previewImagemArquivo(XFile file, int index) {
+    return _tileImagem(
+      onRemover: () => _removerImagemNova(index),
+      child: Image.file(
+        File(file.path),
+        width: double.infinity,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
+  Widget _previewImagemExistente(String path, int index) {
     final url = fotoUrl(path);
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Image.network(
-              url,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return appContainer(
-                  width: double.infinity,
-                  backgroundColor: AppColors.grey200,
-                  child: Center(
-                    child: Icon(Icons.broken_image_outlined, color: AppColors.grey600, size: 42),
-                  ),
-                );
-              },
+    return _tileImagem(
+      onRemover: () => _removerImagemExistente(index),
+      child: Image.network(
+        url,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return appContainer(
+            width: double.infinity,
+            backgroundColor: AppColors.grey200,
+            child: Center(
+              child: Icon(Icons.broken_image_outlined, color: AppColors.grey600, size: 36),
             ),
-          ),
-        ),
-        _botaoRemoverImagem(),
-      ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _botaoAdicionarImagem() {
+  Widget _botaoAdicionarImagem({bool compacto = false}) {
     return GestureDetector(
       onTap: _adicionarImagem,
       child: appContainer(
         width: double.infinity,
         backgroundColor: AppColors.white,
-        radius: BorderRadius.circular(18),
+        radius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.grey200),
         child: AspectRatio(
           aspectRatio: 1,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_photo_alternate_rounded, color: RamosColors.primary, size: 42),
-              appSizedBox(height: 10),
+              Icon(
+                Icons.add_photo_alternate_rounded,
+                color: RamosColors.primary,
+                size: compacto ? 32 : 42,
+              ),
+              appSizedBox(height: compacto ? 6 : 10),
               appText(
-                'Adicionar imagem',
+                compacto ? 'Adicionar' : 'Adicionar imagem',
                 color: RamosColors.primaryDark,
                 fontSize: AppFontSizes.verySmall,
                 bold: true,
               ),
-              appSizedBox(height: 4),
-              appText(
-                'Recorte e gire antes de usar',
-                color: AppColors.grey600,
-                fontSize: 12,
-              ),
+              if (!compacto) ...[
+                appSizedBox(height: 4),
+                appText(
+                  'Recorte e gire antes de usar',
+                  color: AppColors.grey600,
+                  fontSize: 12,
+                ),
+              ],
             ],
           ),
         ),
@@ -341,34 +357,48 @@ class _CadastroPublicacaoPageState extends State<CadastroPublicacaoPage> {
     );
   }
 
+  String _subtituloImagens() {
+    final restante = _maxImagens - _totalImagens;
+    if (_totalImagens == 0) {
+      return 'Opcional. Até $_maxImagens imagens (JPG, PNG, WEBP ou GIF).';
+    }
+    if (restante == 0) {
+      return 'Limite de $_maxImagens imagens atingido.';
+    }
+    return '$_totalImagens de $_maxImagens · falta $restante imagem${restante == 1 ? '' : 'ns'}.';
+  }
+
   Widget _imagensSection() {
+    if (_totalImagens == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Imagens', subtitle: _subtituloImagens()),
+          _botaoAdicionarImagem(),
+        ],
+      );
+    }
+
+    final tiles = <Widget>[
+      for (var i = 0; i < _imagensExistentes.length; i++)
+        _previewImagemExistente(_imagensExistentes[i], i),
+      for (var i = 0; i < _imagensNovas.length; i++)
+        _previewImagemArquivo(_imagensNovas[i], i),
+      if (_podeAdicionar) _botaoAdicionarImagem(compacto: true),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          'Imagem',
-          subtitle: _isEdit
-              ? 'Opcional. Uma nova imagem substitui a atual.'
-              : 'Opcional. Apenas 1 imagem (JPG, PNG, WEBP ou GIF).',
+        _sectionHeader('Imagens', subtitle: _subtituloImagens()),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          children: tiles,
         ),
-        if (_imagem != null)
-          _previewImagemArquivo(_imagem!)
-        else if (_imagemExistente != null)
-          _previewImagemExistente(_imagemExistente!)
-        else
-          _botaoAdicionarImagem(),
-        if (_temImagem) ...[
-          appSizedBox(height: 12),
-          GestureDetector(
-            onTap: _adicionarImagem,
-            child: appText(
-              'Trocar imagem',
-              bold: true,
-              color: RamosColors.primary,
-              fontSize: AppFontSizes.verySmall,
-            ),
-          ),
-        ],
       ],
     );
   }

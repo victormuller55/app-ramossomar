@@ -9,6 +9,8 @@ import 'package:app_ramos_candidatura/pages/feed/feed_page.dart';
 import 'package:app_ramos_candidatura/pages/admin/lideres/lideres_page.dart';
 import 'package:app_ramos_candidatura/pages/perfil/perfil_page.dart';
 import 'package:app_ramos_candidatura/pages/admin/relatorios/relatorios_page.dart';
+import 'package:app_ramos_candidatura/cache/reference_data_prefetch.dart';
+import 'package:app_ramos_candidatura/offline/offline_sync_service.dart';
 import 'package:app_ramos_candidatura/widgets/app_loading.dart';
 
 class _HomeNavItem {
@@ -93,7 +95,17 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(kAppSystemUiOverlay);
+    OfflineSyncService.instance.start();
+    // Sessão restaurada: atualiza se o cache estiver vencido.
+    // No login, o EntrarBloc já dispara o download forçado com progresso.
+    ReferenceDataPrefetch.sincronizar(forcar: false, mostrarProgresso: true);
     _carregarPerfil();
+  }
+
+  @override
+  void dispose() {
+    OfflineSyncService.instance.stop();
+    super.dispose();
   }
 
   Future<void> _carregarPerfil() async {
