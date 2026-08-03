@@ -7,8 +7,8 @@ import 'package:app_ramos_candidatura/app_config/app_theme.dart';
  import 'package:app_ramos_candidatura/app_config/app_widget.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
 
+  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(kAppSystemUiOverlay);
 
   FlutterError.onError = (details) {
@@ -16,7 +16,7 @@ void main() {
     developer.log(
       details.exceptionAsString(),
       name: 'FlutterError',
-      error: details.exception,
+      error: details.exception, 
       stackTrace: details.stack,
     );
   };

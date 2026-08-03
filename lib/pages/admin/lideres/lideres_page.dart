@@ -345,10 +345,8 @@ class _LideresPageState extends State<LideresPage> {
     final ativo = lider.ativo ?? true;
     final telefone = (lider.telefone ?? '').trim();
     final detalhe = telefone.isNotEmpty ? formataCelular(telefone) : (lider.email ?? 'Sem e-mail');
-    final total = lider.totalApoiadores;
-    final labelCadastrados = total == null
-        ? null
-        : (total == 1 ? '1 cadastrado' : '$total cadastrados');
+    final total = lider.totalApoiadores ?? 0;
+    final labelApoiadores = total == 1 ? '1 apoiador' : '$total apoiadores';
 
     return appContainer(
       padding: const EdgeInsets.all(14),
@@ -397,11 +395,10 @@ class _LideresPageState extends State<LideresPage> {
                       label: ativo ? 'Ativo' : 'Inativo',
                       color: ativo ? RamosColors.primary : AppColors.grey600,
                     ),
-                    if (labelCadastrados != null)
-                      _chip(
-                        label: labelCadastrados,
-                        color: RamosColors.primaryDark,
-                      ),
+                    _chip(
+                      label: labelApoiadores,
+                      color: RamosColors.primaryDark,
+                    ),
                   ],
                 ),
               ],
