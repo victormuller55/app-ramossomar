@@ -1,10 +1,10 @@
 /// Base da API de produção.
-// const String server = 'https://ramossomar.api.convertix.net.br';
+const String server = 'https://ramossomar.api.convertix.net.br';
 
 /// Emulador Android → máquina host: use `10.0.2.2` (não use 192.168.x nem localhost).
 /// Celular físico na mesma rede → use o IP do notebook (ex.: 192.168.0.105).
 
-const String server = 'http://10.0.2.2:7000';
+// const String server = 'http://10.0.2.2:7000';
 
 
 String get api => '$server/api/v1/ramossomar';
